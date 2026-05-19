@@ -1,0 +1,150 @@
+\chapter{Evaluation Methodology}
+\label{ch:evaluation}
+
+Where the reference report~\cite{anh2026mmr} evaluates a recommendation pipeline under a fixed temporal-holdout protocol with ranking metrics, an interactive system requires a different evaluation posture. The artefacts under evaluation are ongoing dialogue sessions, and the metrics of interest are operational (latency, throughput, error rate, cost) and behavioural (completion, retention, feedback ratings).
+
+\section{Operational Metrics}
+\label{sec:op-metrics}
+
+Table~\ref{tab:operational} defines six operational metrics and target thresholds aligned with conversational-tutor literature and the legacy LiveKit baseline~\cite{livekit2024}.
+
+\begin{table}[H]
+\centering
+\caption{Operational metrics, definitions and target thresholds.}
+\label{tab:operational}
+\begin{tabular}{@{}p{3.5cm}p{5.5cm}p{2.5cm}@{}}
+\toprule
+\textbf{Metric} & \textbf{Definition} & \textbf{Target} \\
+\midrule
+Round-trip latency (p50) & Median client message to first model response byte at proxy & $<$ 250\,ms \\
+Round-trip latency (p95) & 95th percentile of the above & $<$ 500\,ms \\
+Concurrent sessions/instance & Active WebSockets per Cloud Run instance & $\geq$ 1,000 \\
+Message failure rate & Frames failing to deliver either direction & $<$ 1\% \\
+Connection failure rate & Failed WebSocket upgrades per minute & $<$ 10/min \\
+Memory utilisation & Steady-state memory per instance & $<$ 80\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Spoken dialogue becomes uncomfortable when round-trip exceeds approximately 700--900\,ms; the 500\,ms p95 budget leaves headroom for browser audio framing and WAN egress.
+
+\section{Behavioural Metrics}
+\label{sec:beh-metrics}
+
+Table~\ref{tab:behavioural} lists behavioural metrics tracked in Mixpanel and Firestore.
+
+\begin{table}[H]
+\centering
+\caption{Behavioural metrics tracked through Mixpanel and Firestore.}
+\label{tab:behavioural}
+\begin{tabular}{@{}p{4cm}p{8.5cm}@{}}
+\toprule
+\textbf{Metric} & \textbf{Definition} \\
+\midrule
+Prompt engagement rate & Homepage visitors who submit a skill query / total visitors \\
+Assessment completion rate & Users who finish initial skill assessment / users who start \\
+Assistant interaction rate & Sessions with $\geq$ 3 tutor messages / total session starts \\
+Sign-up conversion & Anonymous users who sign in within 24\,h / anonymous with $\geq$1 session \\
+7-day retention & Authenticated users who return within 7 days of sign-up \\
+Feedback rating distribution & Thumbs-up vs thumbs-down on conversation feedback \\
+Lesson completion rate & Lessons with \texttt{is\_completed} true per session start \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Cost Metrics}
+\label{sec:cost}
+
+The freemium model commits approximately 60 minutes/month at the free tier. The proxy emits usage events from \texttt{usageMetadata}; the backend aggregates into \texttt{gemini\_sessions}. Quota enforcement at session creation denies new sessions with WebSocket close code 4429 when \texttt{minutes\_used} equals \texttt{minutes\_allowed}.
+
+\section{Algorithm-Level Validation}
+\label{sec:algo-validation}
+
+Each algorithm has a validation criterion:
+\begin{itemize}
+    \item \textbf{A1:} Negative test suite for each rejection path (missing token, invalid signature, expired, banned, quota exhausted).
+    \item \textbf{A2:} Token-count drift $<$ 1\% vs.\ Gemini-reported \texttt{usageMetadata} after synthetic session.
+    \item \textbf{A3:} Generated graphs are acyclic, 6--20 lessons, $\geq$70\% title stability on regeneration.
+    \item \textbf{A4:} Agent-side write observed by polling loop within one period.
+    \item \textbf{A5:} Labelled corpus for child-lesson heuristic; precision-at-1 reported.
+    \item \textbf{A6:} Fault-injection for duplicate execution and partial failure; idempotence asserted.
+    \item \textbf{BuildSessionContext:} Unit tests for top-$k$ profile selection given synthetic multi-course histories.
+\end{itemize}
+
+\section{Observability Stack}
+\label{sec:observability}
+
+Metrics are produced by Cloud Logging (correlation ID per session), Mixpanel (funnel metrics), AgentOps (per-agent telemetry for future multi-agent design), Cloud Trace, Error Reporting, and regional uptime checks. Listing~\ref{lst:health} shows the proxy health endpoint.
+
+\begin{lstlisting}[caption={Proxy health endpoint.},label=lst:health]
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    activeConnections: wss.clients.size,
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    geminiConnection: geminiHealthCheck()
+  });
+});
+\end{lstlisting}
+
+\section{Alerting}
+\label{sec:alerting}
+
+Five rules page on-call via PagerDuty (critical) or Slack (warning): error rate $>$ 5\% over 5 minutes; connection failures $>$ 10/minute; average response time $>$ 2\,s; token quota warning at 80\% / critical at 95\%; memory $>$ 80\% per instance.
+
+\section{Load Testing}
+\label{sec:load}
+
+An Artillery scenario ramps 10 arrivals/s for 60\,s, plateaus at 50/s for 120\,s, peaks at 100/s for 60\,s. Each arrival opens a WebSocket, exchanges 20 frames, and closes. Expected: p95 latency below 500\,ms and memory below 80\%.
+
+\section{Comparative Baseline}
+\label{sec:baseline}
+
+The previous LiveKit-based pipeline~\cite{livekit2024} is the comparative baseline. Pilot measurements suggest (i) 200--500\,ms median latency reduction, (ii) 2--3$\times$ more concurrent sessions per server, (iii) 40--60\% lower CPU/memory, and (iv) eliminated LiveKit licensing cost. These figures are \emph{direction expectations}, validated continuously against operational metrics but not yet confirmed by a controlled production A/B test (Section~\ref{sec:eval-limitations}).
+
+\section{Evaluation Limitations and Validity}
+\label{sec:eval-limitations}
+
+The reviewer noted that evaluation relies predominantly on \textbf{offline measurement} and comparison against expected figures rather than a rigorous online A/B test against the legacy LiveKit baseline on production traffic. We acknowledge this limitation explicitly:
+
+\begin{itemize}
+    \item \textbf{Offline operational metrics.} Latency, error rate, and cost are computed post-hoc from proxy logs and \texttt{gemini\_sessions} documents. They characterise the deployed WebSocket architecture but do not isolate causal effects of individual design choices.
+    \item \textbf{Decommissioned baseline.} The LiveKit pipeline is no longer running in production, so a like-for-like online comparison on the same users is infeasible without re-deploying a shadow stack.
+    \item \textbf{Behavioural proxies.} Completion rate and retention are necessary but not sufficient for learning efficacy; they do not measure knowledge gain directly.
+    \item \textbf{Threats to operational claims.} Cold-start latency, token-counter drift, and 30\,s polling granularity (Section~\ref{sec:threats}) bound the precision of reported SLAs.
+\end{itemize}
+
+Framing evaluation as observability-first is appropriate for an engineering internship deliverable that ships a production gateway, but it is weaker than a randomised controlled trial for causal claims about latency improvement.
+
+\section{Proposed Online Evaluation Protocol}
+\label{sec:online-protocol}
+
+To address the review feedback, we propose a concrete online evaluation protocol implementable in the next development cycle, even though it has not yet been executed:
+
+\textbf{Phase 1: Shadow replay (4 weeks).}
+\begin{enumerate}
+    \item Reconstruct anonymised session traces from archived LiveKit-era logs (if retained) or synthesise equivalent prompt/audio frame sequences from stored transcripts.
+    \item Run the same traces through the current Gemini Proxy in a staging environment; compare p50/p95 round-trip, token cost, and error rate.
+    \item Guardrail: no learner-facing traffic; quota caps on Gemini API spend.
+\end{enumerate}
+
+\textbf{Phase 2: Canary deployment (8 weeks).}
+\begin{enumerate}
+    \item Route 5\% of production sessions to an instrumented canary revision with enhanced tracing (OpenTelemetry spans per hop).
+    \item Primary metrics: round-trip latency (p50, p95), session completion rate, cost per session, WebSocket close-code distribution.
+    \item Check for sample ratio mismatch (SRM) between canary and stable cohorts weekly.
+    \item Stop rule: roll back if p95 latency exceeds 600\,ms for two consecutive days or error rate exceeds 2\%.
+\end{enumerate}
+
+\textbf{Phase 3: Multi-intent A/B (6 weeks, after \S\ref{sec:multi-intent} ships).}
+\begin{enumerate}
+    \item Control: single global summary priming (current).
+    \item Treatment: \textsc{BuildSessionContext} with $k=2$ course profiles.
+    \item Primary metric: assistant interaction rate and thumbs-up ratio; secondary: lesson completion rate.
+    \item Minimum detectable effect: 5\% relative improvement with $\alpha=0.05$, $\beta=0.20$ $\Rightarrow$ approximately 2,400 sessions per arm (power calculation on binomial proportion).
+\end{enumerate}
+
+\textbf{What would unblock full LiveKit A/B.} Re-deploying the legacy agent as a shadow reader (receive duplicated audio, do not respond to users) would allow latency comparison on live traffic without restoring LiveKit to the critical path. This requires engineering effort estimated at two sprint-weeks and explicit ethics review for duplicated audio processing.
+
+This protocol moves evaluation from ``direction expectations'' toward falsifiable hypotheses while respecting that the legacy stack cannot be re-enabled for all users without operational risk.

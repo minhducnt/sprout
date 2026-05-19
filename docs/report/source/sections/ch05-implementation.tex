@@ -1,0 +1,147 @@
+\chapter{Implementation Details}
+\label{ch:implementation}
+
+This section translates the algorithms of Chapter~\ref{ch:methodology} into concrete artefacts: the proxy server, the typed TypeScript SDK, the backend service, and the Cloud Run deployment.
+
+\section{Repository Layout}
+\label{sec:repo}
+
+The platform is organised as a hybrid monorepo:
+\begin{itemize}
+    \item \texttt{sprout-web/} --- Next.js 14 frontend (TypeScript, Tailwind, Shadcn/ui, Zustand). Static export deployed to Firebase Hosting.
+    \item \texttt{sprout-backend/} --- Firebase Cloud Functions (Node.js + TypeScript). REST API, Firestore triggers, auth middlewares.
+    \item \texttt{gemini-proxy/} --- Stateless Node.js WebSocket gateway on Cloud Run. No per-user data beyond the in-process session map.
+    \item \texttt{packages/gemini-proxy-sdk/} --- Published as \texttt{@abyxolv/gemini-proxy-sdk}.
+    \item \texttt{sprout-app/} --- Terraform provisioning Firebase, Cloud Run, Cloud Tasks, and secrets~\cite{firebase2024,cloudrun2024}.
+\end{itemize}
+
+\section{Gemini Proxy Server}
+\label{sec:proxy}
+
+The proxy is built around the \texttt{ws} WebSocket library. Listing~\ref{lst:jwt} shows JWT validation; Listing~\ref{lst:session} the session manager; Listing~\ref{lst:backend} the backend event client.
+
+\begin{lstlisting}[caption={JWT validation middleware (\texttt{auth-middleware.js}).},label=lst:jwt]
+const { OAuth2Client } = require('google-auth-library');
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+async function validateGoogleJWT(token) {
+  const ticket = await client.verifyIdToken({
+    idToken: token,
+    audience: process.env.GOOGLE_CLIENT_ID,
+  });
+  return ticket.getPayload();
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Session manager (\texttt{session-manager.js}).},label=lst:session]
+class SessionManager {
+  constructor() {
+    this.sessions = new Map();
+    this.userSessions = new Map();
+  }
+  createSession(uid, userData) {
+    const sessionId = generateSessionId();
+    const session = {
+      id: sessionId, uid, userData,
+      startTime: Date.now(),
+      tokenUsage: { input: 0, output: 0 },
+      messageCount: 0, status: 'active'
+    };
+    this.sessions.set(sessionId, session);
+    this.userSessions.set(uid, sessionId);
+    return session;
+  }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Backend event client.},label=lst:backend]
+class BackendClient {
+  async sendSessionEvent(sessionId, eventType, data) {
+    try {
+      await axios.post(
+        `${this.baseUrl}/api/sessions/${sessionId}/events`,
+        { type: eventType, data, timestamp: Date.now() }
+      );
+    } catch (e) {
+      console.error('Failed to send backend event:', e);
+    }
+  }
+}
+\end{lstlisting}
+
+\section{Client SDK}
+\label{sec:sdk}
+
+The frontend uses \texttt{@abyxolv/gemini-proxy-sdk}, which standardises authentication, reconnection, audio framing, and metric capture. Listing~\ref{lst:sdk-api} shows the public TypeScript surface; Listing~\ref{lst:browser} typical browser usage.
+
+\begin{lstlisting}[caption={Public SDK API.},label=lst:sdk-api]
+export interface TokenProvider {
+  getToken(): Promise<string>;
+}
+export interface GeminiProxyClientOptions {
+  proxyUrl: string;
+  tokenProvider: TokenProvider;
+  reconnect?: { enabled: boolean; maxRetries?: number };
+}
+export interface GeminiProxyClient {
+  connect(): Promise<void>;
+  disconnect(code?: number, reason?: string): void;
+  send(data: unknown): void;
+  sendText(text: string): void;
+  on(listener: (e: GeminiEvent) => void): () => void;
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Browser usage.},label=lst:browser]
+const client = createGeminiClient({
+  proxyUrl: process.env.NEXT_PUBLIC_GEMINI_PROXY_URL!,
+  tokenProvider: { getToken: () => auth.currentUser!.getIdToken() },
+  reconnect: { enabled: true, maxRetries: 5, backoffMs: 1000 },
+});
+await client.connect();
+client.on((e) => {
+  if (e.type === 'message') { /* update UI */ }
+  if (e.type === 'usage') { /* update token meter */ }
+});
+\end{lstlisting}
+
+\section{Backend Service Surface}
+\label{sec:backend-api}
+
+Public endpoints include \texttt{POST /onboarding/skills}, \texttt{POST /courses/knowledge-map}, \texttt{GET /courses/\{id\}/lessons/\{id\}/completion}, and \texttt{POST /conversations/feedback}. Internal proxy endpoints include \texttt{POST /internal/session/create-session} and \texttt{POST /internal/chat/events/callback}. The split ensures the live data plane never invokes user-scoped auth paths.
+
+\section{Cloud Run Deployment}
+\label{sec:cloudrun}
+
+Listing~\ref{lst:cloudrun} shows the service definition: container concurrency 50, CPU throttling disabled, minimum instances 1 to avoid cold-start latency.
+
+\begin{lstlisting}[caption={Cloud Run service definition for \texttt{gemini-proxy}.},label=lst:cloudrun]
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: gemini-proxy
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/cpu-throttling: 'false'
+        run.googleapis.com/min-instances: '1'
+        run.googleapis.com/max-instances: '200'
+    spec:
+      containerConcurrency: 50
+      containers:
+      - image: gcr.io/$PROJECT_ID/gemini-proxy:latest
+        ports:
+        - name: h2c
+          containerPort: 8080
+\end{lstlisting}
+
+\section{Configuration and Secrets}
+\label{sec:secrets}
+
+Credentials are sourced from Google Secret Manager. Non-sensitive configuration flows from Terraform variables; \texttt{NEXT\_PUBLIC\_*} variables are injected at build time and are not secrets.
+
+\section{Frontend Components}
+\label{sec:frontend}
+
+The AI surface is concentrated in \texttt{AssistantConnector} (SDK lifecycle and modality selection), \texttt{AssistantChat} (transcript and text input), and \texttt{SkillMapChart} (React Flow knowledge map). The \texttt{useLessonCompletionPolling} hook implements Algorithm~\ref{alg:a4} on the Firestore client SDK.

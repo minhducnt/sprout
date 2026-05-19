@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor / IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# LaTeX build artifacts (anywhere under docs/)
+*.aux
+*.bbl
+*.blg
+*.bcf
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.run.xml
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+*.xdv
+
+# Generated PDF from LaTeX source (keep exported finals in docs/ if committed)
+docs/report/source/main.pdf

@@ -1,0 +1,53 @@
+\chapter{Introduction}
+\label{ch:intro}
+
+\section{Background and Motivation}
+\label{sec:background}
+
+Adaptive learning platforms remain dominated by static course graphs and pre-recorded lectures. While such material scales economically, it cannot react to the learner mid-sentence: it cannot recognise that a user mispronounced a word, that their gaze has drifted from the camera, or that a piece of code on the shared screen contains a bug. The recent generation of multimodal large language models (LLMs)---in particular Google's Gemini Live API, which streams audio, images and text in a single bidirectional channel---has changed this calculus. A single inference endpoint can now hold a spoken dialogue, watch the learner via webcam, look at the screen the learner shares, and reply with synthetic speech, all within latency budgets acceptable for tutoring ($\sim$300--700\,ms one-way).
+
+Sprout is built on this premise. It is an AI-powered adaptive learning platform that personalises skill acquisition for adult learners, neurodiverse learners (with attention or autism-spectrum profiles), and vocational students whose practice naturally involves doing, demonstrating and being seen. The product surfaces three user-visible behaviours: natural-language skill discovery, visual knowledge maps (an AI generates a prerequisite graph of lessons in the React Flow canvas), and a multi-modal teaching assistant.
+
+What makes those behaviours economically interesting is replacement pressure. Human one-on-one tutoring costs roughly \$20--\$50/hour; an LLM-driven session approaches \$2--\$3/hour at typical token usage. The technical question---how do we deliver such a session reliably, cheaply and observably?---is the subject of this report.
+
+\section{Problem Statement}
+\label{sec:problem}
+
+The Sprout AI subsystem must satisfy four objectives concurrently:
+\begin{enumerate}
+    \item \textbf{Real-time multimodal communication.} A session must accept microphone audio, webcam video, screen frames and text within a single context window, and must stream the model's audio response back fast enough that turn-taking feels natural ($\leq$ 1\,s round-trip target).
+    \item \textbf{Information recording.} Every dialogue turn, completion signal and feedback rating must be persisted to support context priming, parent and educator dashboards, and administrative audit, while respecting privacy constraints on raw media.
+    \item \textbf{Direct exchange with the user.} The frontend must connect directly to the AI gateway---there must not be a Cloud Function in the audio path---so latency is dominated by the WAN leg only. Authentication must be enforced at the gateway, not by the model.
+    \item \textbf{Operational predictability.} The system must support graceful failover, observable token consumption, an explicit maximum-session-duration policy, and rate limits to defend against abuse and to make freemium quotas tractable.
+\end{enumerate}
+
+A pre-existing Python/LiveKit pipeline that orchestrated GPT, Gemini and custom STT (Whisper) and TTS (Silero) plugins satisfied the first two objectives but failed the latter two: it held two server-side hops in the audio path, made authentication awkward, and produced opaque per-session cost figures. The present design replaces that pipeline with a thin gateway and is the focus of the report.
+
+\section{Engineering Questions and Objectives}
+\label{sec:questions}
+
+The report is organised around three concrete engineering questions:
+\begin{itemize}
+    \item \textbf{Q1 (Latency \& topology).} Can a JWT-validated WebSocket proxy deliver lower median dialogue latency than the LiveKit-based agent system at equal or lower cost?
+    \item \textbf{Q2 (Recording shape).} What Firestore schema and trigger graph minimise the number of round trips needed to (a) prime the AI tutor with previous context and (b) detect lesson completion across both agent-side and client-side observation?
+    \item \textbf{Q3 (Pre-signup activation).} How can an anonymous user persist progress, accumulate value through full multimodal sessions, and later promote that progress into an authenticated account without losing data and without an account-merge race?
+\end{itemize}
+
+The corresponding engineering objectives are: (i) build a Cloud-Run-hosted proxy validating Firebase/Google JWTs and forwarding to Gemini Live; (ii) define an explicit Firestore data model; (iii) ship a typed TypeScript SDK; (iv) implement asynchronous knowledge-map generation via Cloud Tasks; (v) implement dual-channel lesson completion detection; and (vi) implement HTTP-only-cookie-based anonymous session linking.
+
+\section{Contributions}
+\label{sec:contributions}
+
+The principal contributions of this report are:
+\begin{enumerate}
+    \item A reproducible system architecture from the browser WebSocket to the Gemini Live API and back, with explicit component boundaries and deployment artefacts.
+    \item A formalisation of six core algorithms governing the AI subsystem.
+    \item A Firestore-grounded data model that records every modality of dialogue plus aggregate session statistics.
+    \item A typed client SDK contract (\texttt{@abyxolv/gemini-proxy-sdk}) that hides WebSocket reconnection, JWT refresh, and audio framing from the rest of the frontend.
+    \item A forward path to multi-agent coordination based on Gemini function calling~\cite{midscene2024,sprout2026multiagent}.
+\end{enumerate}
+
+\section{Report Organisation}
+\label{sec:organisation}
+
+Section~\ref{ch:litreview} reviews related literature. Section~\ref{ch:context} describes the system context. Section~\ref{ch:methodology} formalises the six algorithms and the proposed multi-intent user representation. Section~\ref{ch:implementation} documents the implementation. Section~\ref{ch:evaluation} states the evaluation methodology. Section~\ref{ch:discussion} discusses achieved properties and limitations. Section~\ref{ch:operations} covers operations and reproducibility. Section~\ref{ch:conclusion} concludes with the multi-agent and function-calling roadmap.

@@ -1,0 +1,84 @@
+% !TEX program = xelatex
+\documentclass[12pt]{report}
+\usepackage[fontsize=13pt]{scrextend}
+\usepackage[a4paper,top=2cm,bottom=2cm,left=3cm,right=2cm]{geometry}
+\usepackage{fontspec}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage[backend=bibtex,style=numeric,sorting=none]{biblatex}
+\addbibresource{ref.bib}
+\setmainfont{Times New Roman}
+\usepackage{eso-pic}
+\usepackage{tikz}
+\usepackage{fancyhdr}
+\usepackage{tabularx}
+\usepackage{amsmath}
+\usepackage{microtype}
+\usepackage{multirow}
+\usepackage{anyfontsize}
+\usepackage{float}
+\usepackage{titlesec}
+\usepackage{listings}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{hyperref}
+\usepackage{longtable}
+\usepackage{graphicx}
+\usetikzlibrary{positioning,arrows.meta}
+
+\linespread{1.5}
+\hypersetup{
+    colorlinks,
+    citecolor=black,
+    filecolor=black,
+    linkcolor=black,
+    urlcolor=black
+}
+
+\lstset{
+    basicstyle=\small\ttfamily,
+    numbers=left,
+    frame=single,
+    breaklines=true,
+    columns=fullflexible,
+}
+
+\renewcommand{\chaptername}{Chapter}
+\renewcommand{\listfigurename}{List of Figures}
+\renewcommand{\listtablename}{List of Tables}
+\renewcommand{\tablename}{Table}
+\renewcommand{\figurename}{Figure}
+
+\titleformat{\chapter}[display]{\normalfont\huge\bfseries}{\chaptertitlename\ \thechapter}{20pt}{\Huge}
+
+\begin{document}
+
+\input{sections/cover-page}
+\clearpage
+\pagenumbering{roman}
+
+\input{sections/abstract}
+\input{sections/list-of-abbreviations}
+\input{sections/contents}
+
+\listoftables
+\newpage
+\listoffigures
+\newpage
+
+\pagenumbering{arabic}
+
+\input{sections/ch01-introduction}
+\input{sections/ch02-literature}
+\input{sections/ch03-system-context}
+\input{sections/ch04-methodology}
+\input{sections/ch05-implementation}
+\input{sections/ch06-evaluation}
+\input{sections/ch07-discussion}
+\input{sections/ch08-operations}
+\input{sections/ch09-conclusion}
+
+\input{sections/references}
+
+\end{document}

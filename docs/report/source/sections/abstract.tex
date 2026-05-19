@@ -1,0 +1,9 @@
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+Sprout is an adaptive learning platform built around a real-time multimodal conversational tutor (voice, text, webcam, and screen sharing). This report describes the production AI subsystem that powers those interactions: a JWT-validated Gemini Proxy WebSocket gateway that connects browser clients to Google Gemini Live API, forwards bidirectional media/messages, and tracks session/token telemetry. Replacing the previous LiveKit/WebRTC path reduces architectural complexity and supports low-latency dialogue targets (p95 round-trip $<$ 500\,ms). The platform records interaction state in a compact Firestore schema (\texttt{users}, \texttt{courses}, \texttt{lessons}, \texttt{conversations}, \texttt{messages}, \texttt{gemini\_sessions}) to enable context priming, completion detection, feedback-driven adaptation, and parent-facing progress summaries.
+
+We formalize six core algorithms: authenticated session establishment, tokenized routing, asynchronous knowledge-map generation (Cloud Tasks), dual-channel lesson completion reconciliation, trigger-based conversation feedback summarization, and anonymous-to-authenticated progress linking via HTTP-only cookie identity. We also document deployment on Cloud Run, a typed TypeScript SDK, and the observability stack (Cloud Logging, Mixpanel, AgentOps). Finally, we outline the next architecture step: function-calling with coordinator/specialist multi-agent orchestration (Visual, Navigation, Assessment, and Accessibility agents) on top of the same gateway and data foundations.
+
+\vspace{0.5em}
+\noindent\textbf{Keywords:} multimodal LLM; Gemini Live API; WebSocket gateway; JWT authentication; conversational tutor; knowledge map generation; adaptive learning; function calling; multi-agent systems; Firestore.

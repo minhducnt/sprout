@@ -1,0 +1,132 @@
+% !TEX program = xelatex
+\documentclass[12pt]{report}
+\usepackage[fontsize=13pt]{scrextend}
+\usepackage[a4paper,top=2cm,bottom=2cm,left=3cm,right=2cm]{geometry}
+% \usepackage{svg}
+\usepackage{tgtermes}
+\usepackage{rotating}
+
+\usepackage{fontspec}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage[backend=biber]{biblatex}
+\addbibresource{ref.bib}
+% \usepackage{pgfsys}
+% \usepackage{transparent}
+\setmainfont{Times New Roman}
+\usepackage{eso-pic}
+\usepackage{tikz}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{tabularx}
+\usepackage{amsmath}
+\usepackage{microtype}
+\usepackage{multirow}
+
+\usetikzlibrary{positioning}
+\usepackage{anyfontsize}
+\usepackage{float}
+\usepackage{titlesec}
+\usepackage{listings}
+\usepackage{lscape}
+\linespread{1.5}
+\usepackage{hyperref}
+\usepackage{longtable}
+\hypersetup{
+    colorlinks,
+    citecolor=black,
+    filecolor=black,
+    linkcolor=black,
+    urlcolor=black
+}
+\usepackage{subcaption}
+
+
+\lstset{
+    basicstyle=\small\ttfamily, % Small font size
+    numbers=left,
+    frame=single,
+}
+\usepackage{pgfplots} % Required for the TikZ figure
+\pgfplotsset{compat=1.17} % Ensure compatibility with the latest version of pgfplots
+
+\newcommand{\Khang}[1]{\textcolor{red!70!pink}{\textbf{\textit{#1}}}}
+\renewcommand{\chaptername}{Chương}
+\renewcommand{\listfigurename}{Danh mục Hình ảnh}
+\renewcommand{\listtablename}{Danh mục Bảng biểu}
+\renewcommand{\tablename}{Bảng}
+\renewcommand{\figurename}{Hình}
+
+% Define chapter font size to be 15pt
+\titleformat{\chapter}[display]{\normalfont\huge\bfseries}{\chaptertitlename\ \thechapter}{20pt}{\Huge}
+
+\begin{document}
+
+\input{sections/cover-page}
+\setmainfont{Times New Roman}
+
+\clearpage
+\pagenumbering{roman} 
+%\input{sections/ins-signature}
+
+\input{sections/decl-of-authen}
+
+\input{sections/ack}
+
+\input{sections/abstract}
+
+%\input{sections/table-of-glossary}
+
+\input{sections/list-of-abbreviations}
+
+\input{sections/contents}
+
+\listoftables
+\newpage
+
+\listoffigures
+\newpage
+
+\pagenumbering{arabic}
+
+\chapter{Giới thiệu tổng quan}
+\label{chapter: intro}
+
+\input{sections/1.Introduction/1.1.Motivation}
+
+\input{sections/1.Introduction/1.2.Goals}
+
+\input{sections/1.Introduction/1.3.Scope}
+
+\input{sections/1.Introduction/1.4.Thesis-structure}
+
+\chapter{Các sản phẩm tương tự (State of the Art)}
+\label{chapter:related}
+\input{sections/related_work.tex}
+
+
+\chapter{Cơ sở lý thuyết}
+\label{chapter:background}
+
+\input{sections/background.tex}
+
+\chapter{Giải pháp đề xuất}
+\label{chapter:solution}
+
+\input{sections/pipeline.tex}
+\chapter{Kết luận}
+\label{chapter:conclusion}
+\input{sections/5.Conclusion/summary}
+
+% Bibliography (ensure we are not inside math mode)
+
+\input{sections/references}
+
+\appendix
+%\chapter{Lý thuyết xử lý tín hiệu}
+
+\input{sections/appendixes/appendix}
+\input{sections/appendixes/plan}
+% add appendix later on
+\end{document}

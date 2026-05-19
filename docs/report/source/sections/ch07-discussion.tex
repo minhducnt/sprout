@@ -1,0 +1,49 @@
+\chapter{Discussion}
+\label{ch:discussion}
+
+\section{What This Work Achieves}
+\label{sec:achieves}
+
+The design replaces a multi-hop, multi-service real-time pipeline with a single thin gateway. Four properties follow:
+\begin{enumerate}
+    \item \textbf{Lower latency by construction.} The legacy LiveKit pipeline routed audio through a room, Python agent, Whisper STT~\cite{radford2022whisper}, LLM, and Silero TTS. The Gemini Proxy collapses these into one Gemini Live session in one WAN round trip (expected 200--500\,ms median reduction).
+    \item \textbf{JWT-validated communication at the edge.} Authorisation is enforced before the upstream WebSocket opens; banned users are rejected on the next message attempt.
+    \item \textbf{Native multimodality.} The proxy is modality-agnostic; adding screen sharing required no proxy changes.
+    \item \textbf{Persistent interaction record.} Every turn lands in \texttt{conversations/\{id\}/messages}; every session in \texttt{gemini\_sessions}.
+\end{enumerate}
+
+Smallness is a feature: the proxy is $\sim$2,000 lines of code; the algorithms fit on a handful of pages; correctness arguments apply to a bounded surface.
+
+\section{Limitations}
+\label{sec:limitations}
+
+\subsection{Single-Region Proxy Footprint}
+\label{sec:limit-region}
+
+The proxy is deployed in one Google Cloud region. Users far from the region pay additional WAN latency. Multi-region deployment would reduce tail latency at the cost of session-affinity routing and per-region quotas. This is deployment work; algorithms in Chapter~\ref{ch:methodology} are region-independent.
+
+\subsection{Single-Vector User Model}
+\label{sec:limit-vector}
+
+The \emph{deployed} system currently primes the tutor from \texttt{users/\{uid\}} and a single conversation summary from Algorithm~\ref{alg:a5}. This single-vector model degrades when interests are multi-modal.
+
+\textbf{Mitigation in current architecture.} Section~\ref{sec:multi-intent} proposes \texttt{course\_profiles} and Algorithm~\ref{alg:context} (\textsc{BuildSessionContext}) as an implementable extension requiring only Firestore trigger and prompt-assembly changes---no proxy modification. This directly addresses the reviewer feedback that multi-interest personalization should not be deferred entirely to future work. Pilot implementation of course-scoped summaries can ship before multi-agent coordination (Section~\ref{sec:multi-agent}).
+
+\subsection{External AI Dependency}
+\label{sec:limit-dependency}
+
+The platform depends on Google Gemini Live API for the entire conversational layer. Mitigations include circuit breakers, failover to a secondary provider (the legacy pipeline as emergency fallback), and contractual SLAs---none eliminate the dependency.
+
+\subsection{Offline Evaluation Only}
+\label{sec:limit-offline}
+
+Evaluation (Chapter~\ref{ch:evaluation}) is predominantly offline: operational metrics and behavioural metrics computed post-hoc. There is no controlled production A/B against the decommissioned LiveKit baseline. Comparative claims in Section~\ref{sec:baseline} are direction-of-magnitude. Section~\ref{sec:online-protocol} specifies a phased protocol to strengthen causal evidence.
+
+\section{Threats to Validity}
+\label{sec:threats}
+
+\begin{itemize}
+    \item \textbf{Cold-start latency.} \texttt{min-instances=1} mitigates but does not eliminate cold starts for concurrent users beyond the first.
+    \item \textbf{Token-counter drift.} Usage frames arriving after close may be lost; batched persistence (Algorithm~\ref{alg:a2}) mitigates partially.
+    \item \textbf{Polling drift.} Algorithm~\ref{alg:a4} polls at 30\,s; users navigating away immediately may miss the completion dialog.
+\end{itemize}

@@ -1,0 +1,55 @@
+\chapter{Operations and Reproducibility}
+\label{ch:operations}
+
+\section{Environment Separation}
+\label{sec:env}
+
+Three environments are maintained: \texttt{dev}, \texttt{uat}, and \texttt{prod}, each in a separate GCP project with isolated Firebase, Firestore, Secret Manager, and Cloud Tasks. Branch mapping: \texttt{develop} $\rightarrow$ dev, \texttt{uat} $\rightarrow$ uat, \texttt{master} $\rightarrow$ prod. GitLab CI runs \texttt{terraform plan/apply} with matching \texttt{<env>.tfvars}.
+
+\section{Terraform State}
+\label{sec:terraform}
+
+State is held in an HTTP backend on GitLab, one file per environment. Manual GCP console changes are disallowed to prevent drift. Pipelines acquire a state lock for the duration of apply.
+
+\section{Secret Management}
+\label{sec:ops-secrets}
+
+Sensitive credentials live in Secret Manager. The proxy mounts \texttt{GOOGLE\_CLIENT\_ID} and \texttt{GEMINI\_API\_KEY} via \texttt{secretKeyRef}. The frontend holds only \texttt{NEXT\_PUBLIC\_*} values.
+
+\section{Health Checks and Synthetic Tests}
+\label{sec:health-checks}
+
+The proxy exposes \texttt{/health} with \texttt{status}, \texttt{activeConnections}, \texttt{uptime}, \texttt{memory}, and \texttt{geminiConnection}. Uptime checks poll every 60\,s; a synthetic agent opens a WebSocket, exchanges a known prompt, and asserts a non-empty response.
+
+\section{Alerting}
+\label{sec:ops-alerting}
+
+Five Cloud Monitoring rules (Section~\ref{sec:alerting}) page via PagerDuty or Slack with runbook links and recent log queries.
+
+\section{Rollback}
+\label{sec:rollback}
+
+Rollback exists at three layers: Cloud Run revision traffic shift; Firebase Functions artefact promotion; Firestore logical schema guarded by feature flags.
+
+\section{Reproducing the Pipeline}
+\label{sec:reproduce}
+
+A clean reproduction requires:
+\begin{enumerate}
+    \item \texttt{terraform apply -var-file=<env>.tfvars} from \texttt{sprout-app}.
+    \item Populate Secret Manager (Gemini API key, OAuth client ID, admin keys).
+    \item Deploy proxy: \texttt{gcloud builds submit gemini-proxy/} then \texttt{gcloud run deploy gemini-proxy}.
+    \item \texttt{firebase deploy --only functions} for backend.
+    \item \texttt{npm run build \&\& firebase deploy --only hosting} for frontend.
+    \item Run synthetic agent against the deployment.
+\end{enumerate}
+
+\section{Determinism Caveats}
+\label{sec:determinism}
+
+LLM output is non-deterministic. Cloud Tasks may deliver more than once; handlers are idempotent. WebSocket clocks use the proxy as authority.
+
+\section{Ethics and Compliance}
+\label{sec:ethics}
+
+The first tutor interaction displays a recording notice. Minor accounts may disable webcam via admin toggle. Raw audio and video are not persisted. Account deletion triggers cascading delete. Administrative reads are logged for 90 days.

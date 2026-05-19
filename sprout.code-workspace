@@ -1,0 +1,75 @@
+{
+  "folders": [
+    {
+      "path": ".",
+      "name": "Sprout"
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/.DS_Store": true,
+      "**/*.aux": true,
+      "**/*.bbl": true,
+      "**/*.blg": true,
+      "**/*.bcf": true,
+      "**/*.run.xml": true,
+      "**/*.synctex.gz": true,
+      "**/*.fdb_latexmk": true,
+      "**/*.fls": true
+    },
+    "search.exclude": {
+      "**/docs/reference/**": true
+    },
+    "latex-workshop.latex.rootFile": "docs/report/source/main.tex",
+    "latex-workshop.latex.outDir": "docs/report/source",
+    "latex-workshop.latex.recipe.default": "xelatex -> bibtex -> xelatex*2",
+    "latex-workshop.latex.recipes": [
+      {
+        "name": "xelatex -> bibtex -> xelatex*2",
+        "tools": [
+          "xelatex",
+          "bibtex",
+          "xelatex",
+          "xelatex"
+        ]
+      }
+    ],
+    "latex-workshop.latex.tools": [
+      {
+        "name": "xelatex",
+        "command": "xelatex",
+        "args": [
+          "-interaction=nonstopmode",
+          "-synctex=1",
+          "%DOC%"
+        ],
+        "env": {
+          "PATH": "/Library/TeX/texbin:${env:PATH}"
+        }
+      },
+      {
+        "name": "bibtex",
+        "command": "bibtex",
+        "args": [
+          "%DOCFILE%"
+        ],
+        "env": {
+          "PATH": "/Library/TeX/texbin:${env:PATH}"
+        }
+      }
+    ],
+    "[latex]": {
+      "editor.wordWrap": "on",
+      "editor.formatOnSave": false
+    },
+    "files.associations": {
+      "*.tex": "latex"
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "James-Yu.latex-workshop",
+      "valentjn.vscode-ltex"
+    ]
+  }
+}

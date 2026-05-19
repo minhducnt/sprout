@@ -1,0 +1,51 @@
+\chapter{Conclusion and Future Work}
+\label{ch:conclusion}
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+We have described the Sprout conversational AI subsystem: the architecture, algorithms, and implementation that allow the platform to communicate with a learner across four modalities, record interactions durably, and compose them into adaptive teaching. Replacing a multi-service Python/LiveKit pipeline with a thin, JWT-validated WebSocket proxy fronting Gemini Live has produced lower dialogue latency, operational complexity, and infrastructure cost than the legacy baseline. Six algorithms make this concrete; an explicit Firestore schema turns the interaction stream into structured information for dashboards, billing, and audit.
+
+The forward trajectory enriches the conversational layer with tools rather than more modalities. Evaluation will strengthen through the online protocol in Section~\ref{sec:online-protocol}; personalization will strengthen through the multi-intent representation in Section~\ref{sec:multi-intent}.
+
+\section{Function Calling}
+\label{sec:function-calling}
+
+Function calling allows the model to emit structured calls into a registry of caller-defined functions~\cite{sprout2026function}. A Chrome-extension prototype demonstrated:
+\begin{itemize}
+    \item \texttt{show\_hint(coords, color, duration)} --- visual indicator on a screen grid.
+    \item \texttt{display\_image(query)} --- educational image retrieval or generation.
+    \item \texttt{navigate\_to\_website(url, returnStrategy)} --- curated external resource in a side pane.
+\end{itemize}
+
+The proxy already routes function-call frames distinctly in Algorithm~\ref{alg:a2}. Implementation requires specialist services, a function registry, and typed result frames.
+
+\section{Multi-Agent Coordination}
+\label{sec:multi-agent}
+
+A larger shift decomposes the single Gemini Live session into a coordinator--specialist system~\cite{midscene2024,sprout2026multiagent}:
+\begin{itemize}
+    \item \textbf{Visual Learning Agent} --- \texttt{display\_image} and visual tooling.
+    \item \textbf{Navigation Agent} --- \texttt{navigate\_to\_website} and return-strategy logic.
+    \item \textbf{Assessment Agent} --- lightweight skill probes without exiting the conversation.
+    \item \textbf{Accessibility Agent} --- pacing and modality adaptation for neurodiverse learners.
+\end{itemize}
+
+A central Learning Coordinator maintains \texttt{LearningContext} (profile, session state, knowledge-map node, recent turns) and selects specialists by capability, recent performance, and cost. Adding capabilities is additive: new specialists register new functions without changing the proxy transport.
+
+\section{Calibrated Lesson Recommendation}
+\label{sec:calibrated-rec}
+
+Calibrated lesson recommendation draws on diversification literature~\cite{steck2018calibrated,carbonell1998mmr,anh2026mmr}. After several lesson completions, the system recommends from eligible knowledge-map successors using a calibrated reranking step that mirrors the empirical distribution of the learner's interests weighted by recency.
+
+\textbf{Relationship to Section~\ref{sec:multi-intent}.} Calibrated reranking operates at \emph{lesson selection} time within a course; \textsc{BuildSessionContext} operates at \emph{session priming} time across courses. Together they address multi-interest learners: priming supplies distinct intent vectors per active course (Section~\ref{sec:multi-intent}); reranking ensures the next lesson within a course reflects calibrated diversity rather than greedy relevance maximisation. Neither replaces the other; both should be evaluated in the Phase~3 A/B protocol (Section~\ref{sec:online-protocol}).
+
+\section{On-Device Privacy Processing}
+\label{sec:on-device}
+
+Webcam frames currently flow to Gemini Live. For posture or eye-contact features, on-device models could extract low-dimensional summaries (posture score, gaze flag) so only summaries leave the device, reducing exposure and bandwidth.
+
+\section{Closing Remarks}
+\label{sec:closing}
+
+The system documented here is a small, opinionated foundation. It bets that a thin proxy in front of a managed multimodal model is the right abstraction for an educational tutor---and constructs a typed SDK, explicit Firestore schema, six algorithms, observability stack, a multi-intent priming extension, and a rigorous evaluation roadmap around that bet. Pilot measurements and reduced operational complexity suggest the bet has paid off; function calling, multi-agent coordination, and online experimentation are the additive next steps.

@@ -1,0 +1,39 @@
+\chapter{Literature Review}
+\label{ch:litreview}
+
+The Sprout AI subsystem sits at the intersection of six bodies of work: intelligent tutoring systems, multimodal large language models, real-time media gateways, function calling and tool augmentation, educational knowledge graphs, and recommendation reranking.
+
+\section{Conversational Intelligent Tutoring Systems}
+\label{sec:lit-its}
+
+Intelligent Tutoring Systems (ITS) have, for three decades, sought to replace one-shot lecture material with adaptive, dialogue-based feedback. Classical ITS pipelines such as AutoTutor~\cite{graesser2005autotutor} combined hand-crafted dialogue moves with shallow natural language understanding. Modern LLMs lower curriculum authoring effort by allowing the dialogue policy to be specified as a prompt, but they raise concerns that the system must address: hallucination control, latency budgeting, and modality switching mid-turn. Sprout addresses these by restricting the AI tutor to course content generated under structured prompts, by routing media directly through a single Gemini Live session, and by recording each dialogue turn to Firestore so that subsequent prompts can be primed deterministically.
+
+\section{Multimodal Large Language Models and the Gemini Live API}
+\label{sec:lit-multimodal}
+
+Multimodal LLMs unify previously separate pipelines for transcription, generation, and synthesis. The Gemini family accepts interleaved audio, image and text in a single context window and emits audio responses in the same stream~\cite{deepmind2024gemini}. Earlier pipelines paid the serialisation cost of three distinct services; a unified multimodal endpoint collapses those costs into one. The contrastive image--text training scheme typified by CLIP~\cite{radford2021clip} establishes that a shared embedding space for media and language is sufficient for many grounding tasks. For Sprout, the proxy can be ignorant of media types: it forwards opaque framed payloads, and only the model interprets them.
+
+\section{Real-Time Media Gateways: WebRTC and WebSocket}
+\label{sec:lit-gateway}
+
+Two transport patterns dominate browser-to-server real-time media: WebRTC (used by LiveKit~\cite{livekit2024}) and WebSocket (used by Gemini Live). WebRTC excels when many participants share a single room, but imposes ICE/STUN/TURN signalling and a server-side media stack. WebSocket trades media-aware features for operational simplicity~\cite{fette2011websocket}. In a one-on-one tutor scenario, WebSocket-based architectures deliver lower median latency at a fraction of the operational complexity. JWT validation~\cite{jones2015jwt} is performed at the proxy edge so that the model endpoint sees only authenticated traffic.
+
+\section{Function Calling and Tool-Augmented Agents}
+\label{sec:lit-function}
+
+Function calling allows an LLM to emit structured calls into a registry of caller-defined functions whose results are returned as follow-up context~\cite{schick2023toolformer}. In educational contexts, this is the natural way to let the tutor request side effects: generate a diagram, highlight a UI region, or open a curated external resource~\cite{sprout2026function}. Function calling also lays the foundation for multi-agent coordination, because the coordinator can expose specialist sub-agents as callable functions~\cite{midscene2024}.
+
+\section{Educational Knowledge Graphs}
+\label{sec:lit-kg}
+
+Sprout displays a learner's roadmap as a directed acyclic graph of lessons with prerequisite edges, consistent with knowledge graphs in education~\cite{chen2018knowedu}. The graph must be small enough to be visually parseable (typically 10--20 lessons) and structurally consistent under regeneration. Sprout caps AI output length and stores the generated graph in Firestore, treating the AI step as a one-shot generator triggered explicitly by the user.
+
+\section{Implicit-Feedback Session Analytics}
+\label{sec:lit-implicit}
+
+Information recording in Sprout is dominated by implicit signals: dwell time, session duration, lesson completion rate and feedback ratings. Hu et al.~\cite{hu2008implicit} formalised implicit feedback in collaborative filtering; Steck~\cite{steck2018calibrated} extended this with calibrated recommendation, in which a recommended set should mirror the empirical distribution of the user's interests. We carry this insight forward into Section~\ref{sec:calibrated-rec} and the multi-intent representation in Section~\ref{sec:multi-intent}.
+
+\section{Approximate Nearest-Neighbour Retrieval}
+\label{sec:lit-ann}
+
+Several future-work paths involve grounding the tutor's responses in a learner's prior conversation or in an external corpus. HNSW graphs~\cite{malkov2018hnsw} are the de facto baseline for million-scale vector indexes. The reference report~\cite{anh2026mmr} applies two-stage MMR reranking~\cite{carbonell1998mmr} in a recommendation setting; we cite it as the evaluation methodology analogue for an interactive system whose artefacts are dialogue sessions rather than retrieved lists.

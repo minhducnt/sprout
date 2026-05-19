@@ -1,0 +1,105 @@
+\chapter{System Context and Use Cases}
+\label{ch:context}
+
+This section grounds the report in the system's actual surface: who the users are, which interaction modalities they exercise, and which data assets the system records. Where the reference report~\cite{anh2026mmr} spends its data section on a fixed dataset, the equivalent for an interactive system is the interaction record---the schema of data the system writes during use.
+
+\section{Stakeholders and Roles}
+\label{sec:stakeholders}
+
+Sprout supports three first-class user roles, plus an administrative role:
+\begin{itemize}
+    \item \textbf{Anonymous learner.} A visitor without an account who can explore skills, generate a knowledge map, and run multimodal sessions. Anonymous progress is bound to an HTTP-only cookie (\texttt{sprout\_session}) and to a Firebase anonymous UID.
+    \item \textbf{Authenticated learner.} A user signed in via email/password or Google OAuth. On first sign-in, anonymous progress from the cookie may be merged into the authenticated profile.
+    \item \textbf{Parent.} A user with visibility into their children's accounts via family invitations, enforced by dedicated middleware cross-referencing family identifiers in Firestore.
+    \item \textbf{Administrator.} A separate Django/AWS portal with API key authentication for aggregate token usage, user bans, and conversation review. Administrators do not hold Firebase credentials.
+\end{itemize}
+
+\section{Multimodal Usage Scenarios}
+\label{sec:modalities}
+
+Table~\ref{tab:modalities} enumerates the four interaction modalities supported by the AI tutor. All four flow through the same Gemini Proxy WebSocket; the proxy is modality-agnostic and forwards opaque framed payloads.
+
+\begin{table}[H]
+\centering
+\caption{Supported interaction modalities and their primary teaching use cases.}
+\label{tab:modalities}
+\begin{tabular}{@{}p{2.8cm}p{4.5cm}p{5.5cm}@{}}
+\toprule
+\textbf{Modality} & \textbf{User experience} & \textbf{Primary teaching use case} \\
+\midrule
+Voice & Hands-free spoken dialogue with synthetic-voice replies & Language learning, interview practice, concept explanation \\
+Text chat & Typed exchange in a chat-style transcript & Accessibility, structured Q\&A, code copy-paste \\
+Webcam & Model receives the learner's video stream & Public-speaking practice, posture and eye-contact feedback \\
+Screen sharing & Model receives a frame stream of the learner's screen & Programming help, software literacy \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Core User Flow}
+\label{sec:userflow}
+
+Figure~\ref{fig:userflow} sketches the end-to-end flow from skill discovery to progress tracking:
+\begin{enumerate}
+    \item \textbf{Skill Discovery.} The user enters a free-text query. The frontend issues \texttt{POST /onboarding/skills}; the backend forwards the query to an LLM and returns refined skill suggestions.
+    \item \textbf{Knowledge Map Generation.} The user selects a skill. The frontend issues \texttt{POST /courses/knowledge-map}; the backend enqueues a Cloud Task; the worker persists the graph in Firestore (typically 10--30\,s).
+    \item \textbf{Learning Session.} The user opens a lesson, obtains a JWT, opens the Gemini Proxy WebSocket, and the bidirectional dialogue begins.
+    \item \textbf{Progress Tracking.} Lesson completion is detected through agent callback or frontend polling; feedback may trigger follow-up lessons.
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=1.2cm,
+    stage/.style={rectangle, draw, minimum width=2.2cm, minimum height=0.8cm, align=center, font=\small},
+    arrow/.style={->, thick}
+]
+\node[stage] (s1) {Skill\\Discovery};
+\node[stage, right=of s1] (s2) {Knowledge\\Map};
+\node[stage, right=of s2] (s3) {Learning\\Session};
+\node[stage, right=of s3] (s4) {Progress\\Tracking};
+\draw[arrow] (s1) -- (s2);
+\draw[arrow] (s2) -- (s3);
+\draw[arrow] (s3) -- (s4);
+\node[below=0.3cm of s1, font=\scriptsize] {NL query $\rightarrow$ LLM};
+\node[below=0.3cm of s2, font=\scriptsize] {React Flow DAG};
+\node[below=0.3cm of s3, font=\scriptsize] {Gemini Live WS};
+\node[below=0.3cm of s4, font=\scriptsize] {Firestore writes};
+\end{tikzpicture}
+\caption{Top-level user flow. Each stage corresponds to distinct backend calls, Firestore writes, and AI invocations.}
+\label{fig:userflow}
+\end{figure}
+
+\section{Recorded Data Assets}
+\label{sec:data-assets}
+
+Sprout records information in Firestore. Table~\ref{tab:firestore} summarises the collections central to the AI subsystem. The most important property is that the schema is addressable from both frontend (Firestore client SDK) and agent (message writes, completion updates), enabling dual-channel completion detection (Section~\ref{sec:algo-a4}).
+
+\begin{table}[H]
+\centering
+\caption{Firestore collections relevant to the AI subsystem.}
+\label{tab:firestore}
+\small
+\begin{tabular}{@{}p{2.8cm}p{9.5cm}@{}}
+\toprule
+\textbf{Collection} & \textbf{Purpose and key fields} \\
+\midrule
+\texttt{users} & Profile and roles: \texttt{uid}, \texttt{email}, \texttt{display\_name}, \texttt{roles[]}, \texttt{selected\_job\_category}. Used to prime the tutor. \\
+\texttt{courses} & Course metadata and AI-generated knowledge map: \texttt{title}, \texttt{knowledgeMap} (DAG), \texttt{createdBy}. \\
+\texttt{lessons} & Lesson content and per-user state: \texttt{courseId}, \texttt{title}, \texttt{content}, \texttt{is\_open}, \texttt{is\_completed}. \\
+\texttt{conversations} & Per-session metadata: \texttt{member\_uids[]}, \texttt{course\_id}, \texttt{modality}, \texttt{model}, \texttt{feedback}. \\
+\texttt{messages} & Per-turn transcript: \texttt{conversationId}, \texttt{authorId}, \texttt{role}, \texttt{content}, \texttt{createdAt}. \\
+\texttt{gemini\_sessions} & Per-WebSocket telemetry: \texttt{uid}, \texttt{startTime}, \texttt{endTime}, \texttt{tokenUsage}, \texttt{messageCount}, \texttt{status}. \\
+\texttt{tasks} & Cloud Tasks records for asynchronous generation. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Privacy and Recording Boundaries}
+\label{sec:privacy}
+
+Three boundaries govern what the platform records:
+\begin{itemize}
+    \item \textbf{Raw media is not stored.} Audio and webcam frames flow through the proxy and are not persisted; only transcript and structured metadata land in Firestore.
+    \item \textbf{Anonymous progress is segregated.} On promotion, anonymous documents are explicitly merged or discarded.
+    \item \textbf{Admin reads are audited.} Administrative reads log the admin key version and timestamp.
+\end{itemize}
