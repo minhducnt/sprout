@@ -17,8 +17,8 @@ sprout/
 │   ├── report/
 │   │   ├── source/            # LaTeX source (main.tex, sections/, Makefile)
 │   │   └── exports/           # Published PDFs
-│   ├── reviews/               # Reviewer feedback
-│   └── reference/
+│   └── references/
+│       ├── reviews/           # Reviewer feedback PDF
 │       └── thesis-templates/  # Formatting reference (not Sprout content)
 └── README.md
 ```
@@ -28,8 +28,8 @@ sprout/
 The documented AI stack includes:
 
 - **Gemini Proxy** — JWT-validated WebSocket gateway on Cloud Run, forwarding clients to Google Gemini Live API  
-- **Data** — Firestore collections (`users`, `courses`, `lessons`, `conversations`, `messages`, `gemini_sessions`)  
-- **Client** — `@abyxolv/gemini-proxy-sdk` (TypeScript) for WebSocket, JWT refresh, and audio framing  
+- **Data** — Firestore collections (`users`, `courses`, `lessons`, `conversations`, `messages`, `gemini_sessions`, planned `course_profiles`)  
+- **Client** — `@sprout/gemini-proxy-sdk` (TypeScript) for WebSocket, JWT refresh, and audio framing  
 - **Async work** — Knowledge-map generation via Cloud Tasks; lesson completion and feedback triggers  
 
 See the [abstract](docs/report/source/sections/abstract.tex) and [introduction](docs/report/source/sections/ch01-introduction.tex) for full scope. Chapter list and `docs/` paths: [`docs/README.md`](docs/README.md).
@@ -47,7 +47,7 @@ Recommended extensions (prompted by the workspace): **LaTeX Workshop**, **LTeX**
 
 ### Build the report
 
-**Requirements:** XeLaTeX + BibTeX (BasicTeX is sufficient), Times New Roman (system font).
+**Requirements:** XeLaTeX + BibTeX (BasicTeX is sufficient), Times New Roman (system font), body text **12pt**.
 
 On macOS, install BasicTeX once:
 
@@ -61,14 +61,14 @@ eval "$(/usr/libexec/path_helper)"
 ```bash
 eval "$(/usr/libexec/path_helper)"
 sudo tlmgr update --self
-sudo tlmgr install biblatex logreq biber eso-pic pgf fancyhdr titlesec algorithms algorithmicx listings caption tools booktabs microtype multirow anyfontsize float
+sudo tlmgr install biblatex logreq biber eso-pic pgf fancyhdr titlesec algorithms algorithmicx listings caption tools microtype multirow anyfontsize float
 ```
 
 Without `sudo`, use user-mode install:
 
 ```bash
 tlmgr init-usertree
-tlmgr install --usermode biblatex logreq eso-pic pgf fancyhdr titlesec algorithms algorithmicx listings caption tools booktabs microtype multirow anyfontsize float
+tlmgr install --usermode biblatex logreq eso-pic pgf fancyhdr titlesec algorithms algorithmicx listings caption tools microtype multirow anyfontsize float
 ```
 
 Bibliography uses **BibTeX** (not Biber), so a system `biber` binary is not required.
@@ -78,10 +78,12 @@ Bibliography uses **BibTeX** (not Biber), so a system `biber` binary is not requ
 ```bash
 eval "$(/usr/libexec/path_helper)"
 cd docs/report/source
-make pdf
+make export
 ```
 
-Output: `docs/report/source/main.pdf` (gitignored; regenerate locally). LaTeX Workshop uses the same recipe via `sprout.code-workspace`.
+`make export` runs `make pdf` (Mermaid diagrams from `diagrams/*.mmd` → `images/*.png`, then XeLaTeX) and copies the result to `docs/report/exports/sprout-internship-final-report.pdf`. Diagrams only: `make diagrams`. Local build artefact: `main.pdf` (gitignored).
+
+LaTeX Workshop uses the same recipe via `sprout.code-workspace`.
 
 **Notes**
 
@@ -91,7 +93,7 @@ Output: `docs/report/source/main.pdf` (gitignored; regenerate locally). LaTeX Wo
 ### Read without building
 
 - [`docs/report/exports/sprout-internship-final-report.pdf`](docs/report/exports/sprout-internship-final-report.pdf) — final exported report  
-- [`docs/reviews/internship-report-review.pdf`](docs/reviews/internship-report-review.pdf) — reviewer feedback  
+- [`docs/references/reviews/internship-report-review.pdf`](docs/references/reviews/internship-report-review.pdf) — reviewer feedback  
 
 ## License
 

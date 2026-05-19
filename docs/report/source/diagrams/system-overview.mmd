@@ -1,0 +1,19 @@
+flowchart TB
+  subgraph client["sprout-web (Next.js)"]
+    UI[Learner UI]
+    SDK["@sprout/gemini-proxy-sdk"]
+  end
+  subgraph gcp["Google Cloud"]
+    Proxy["Gemini Proxy\n(Cloud Run)"]
+    Backend["sprout-backend\n(Cloud Functions)"]
+    FS[(Firestore)]
+    Tasks[Cloud Tasks]
+  end
+  Gemini["Gemini Live API"]
+  UI --> SDK
+  SDK -->|"WSS + JWT"| Proxy
+  Proxy -->|WSS| Gemini
+  UI -->|HTTPS| Backend
+  Backend --> FS
+  Backend --> Tasks
+  Proxy -.->|session events| Backend

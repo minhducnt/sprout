@@ -11,9 +11,53 @@ The platform is organised as a hybrid monorepo:
     \item \texttt{sprout-web/} --- Next.js 14 frontend (TypeScript, Tailwind, Shadcn/ui, Zustand). Static export deployed to Firebase Hosting.
     \item \texttt{sprout-backend/} --- Firebase Cloud Functions (Node.js + TypeScript). REST API, Firestore triggers, auth middlewares.
     \item \texttt{gemini-proxy/} --- Stateless Node.js WebSocket gateway on Cloud Run. No per-user data beyond the in-process session map.
-    \item \texttt{packages/gemini-proxy-sdk/} --- Published as \texttt{@abyxolv/gemini-proxy-sdk}.
+    \item \texttt{packages/gemini-proxy-sdk/} --- Published as \texttt{@sprout/gemini-proxy-sdk}.
     \item \texttt{sprout-app/} --- Terraform provisioning Firebase, Cloud Run, Cloud Tasks, and secrets~\cite{firebase2024,cloudrun2024}.
 \end{itemize}
+
+\section{WebSocket Wire Protocol}
+\label{sec:wss-protocol}
+
+Clients connect with a signed JWT in the query string because browser \code{WebSocket} cannot attach arbitrary headers. Listing~\ref{lst:wss-connect} shows the URL pattern; Listing~\ref{lst:wss-frame} shows the JSON envelope for non-audio frames.
+
+\begin{lstlisting}[caption={WebSocket upgrade URL (browser).},label=lst:wss-connect]
+const url = new URL(process.env.NEXT_PUBLIC_GEMINI_PROXY_URL);
+url.searchParams.set('auth', await tokenProvider.getToken());
+const socket = new WebSocket(url.toString());
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Opaque JSON control frame (client $\rightarrow$ proxy).},label=lst:wss-frame]
+{
+  "type": "client_content",
+  "modality": "text",
+  "payload": { "text": "Explain async/await in JavaScript." }
+}
+\end{lstlisting}
+
+Audio and video use binary frames with a fixed 20\,ms PCM chunk header prepended by the SDK; the proxy forwards them without parsing content (Algorithm~\ref{alg:a2}). Table~\ref{tab:wss-frames} summarises frame categories.
+
+\tablesetup
+\begin{table}[H]
+\centering
+\caption{WebSocket frame categories handled by the proxy.}
+\label{tab:wss-frames}
+\small
+\begin{tabular}{|p{2.4cm}|p{1.5cm}|p{8.4cm}|}
+\hline
+\chead{Direction} & \chead{Type} & \chead{Handling} \\
+\hline
+Client $\rightarrow$ proxy & Binary & Forward to Gemini Live; update byte counters \\
+\hline
+Client $\rightarrow$ proxy & JSON & Route text, tool ack, heartbeat \\
+\hline
+Proxy $\rightarrow$ client & Binary & Model audio/stream chunks \\
+\hline
+Proxy $\rightarrow$ client & JSON & Transcript, \code{usageMetadata}, \code{function\_call} \\
+\hline
+Either & Close & Map to Table~\ref{tab:close-codes}; persist \code{closeCode} \\
+\hline
+\end{tabular}
+\end{table}
 
 \section{Gemini Proxy Server}
 \label{sec:proxy}
@@ -72,7 +116,7 @@ class BackendClient {
 \section{Client SDK}
 \label{sec:sdk}
 
-The frontend uses \texttt{@abyxolv/gemini-proxy-sdk}, which standardises authentication, reconnection, audio framing, and metric capture. Listing~\ref{lst:sdk-api} shows the public TypeScript surface; Listing~\ref{lst:browser} typical browser usage.
+The frontend uses \texttt{@sprout/gemini-proxy-sdk}, which standardises authentication, reconnection, audio framing, and metric capture. Listing~\ref{lst:sdk-api} shows the public TypeScript surface; Listing~\ref{lst:browser} typical browser usage.
 
 \begin{lstlisting}[caption={Public SDK API.},label=lst:sdk-api]
 export interface TokenProvider {
@@ -109,6 +153,88 @@ client.on((e) => {
 \label{sec:backend-api}
 
 Public endpoints include \texttt{POST /onboarding/skills}, \texttt{POST /courses/knowledge-map}, \texttt{GET /courses/\{id\}/lessons/\{id\}/completion}, and \texttt{POST /conversations/feedback}. Internal proxy endpoints include \texttt{POST /internal/session/create-session} and \texttt{POST /internal/chat/events/callback}. The split ensures the live data plane never invokes user-scoped auth paths.
+
+Table~\ref{tab:api-catalogue} catalogues the control-plane surface area most relevant to the AI subsystem. All public routes require a Firebase ID token unless noted.
+
+\tablesetup
+\begin{table}[H]
+\centering
+\caption{Representative REST API catalogue (\texttt{sprout-backend}).}
+\label{tab:api-catalogue}
+\small
+\begin{tabular}{|p{4.6cm}|p{1.2cm}|p{7.5cm}|}
+\hline
+\chead{Route} & \chead{Verb} & \chead{Purpose} \\
+\hline
+\texttt{/onboarding/skills} & POST & NL skill discovery; LLM-refined suggestions \\
+\texttt{/courses/knowledge-map} & POST & Enqueue knowledge-map worker (Cloud Tasks) \\
+\texttt{/courses/\{id\}/lessons} & GET & List lessons and completion flags \\
+\texttt{/courses/\{id\}/lessons/\{lid\}/completion} & GET & Poll lesson completion (Algorithm~\ref{alg:a4}) \\
+\texttt{/conversations/feedback} & POST & Thumbs up/down; triggers Algorithm~\ref{alg:a5} \\
+\texttt{/internal/session/create-session} & POST & Proxy-only session metadata registration \\
+\texttt{/internal/chat/events/callback} & POST & Function-call and completion callbacks from proxy \\
+\texttt{/admin/users/\{uid\}/ban} & POST & Set \texttt{users.banned}; enforced at proxy (A1) \\
+\hline
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:gemini-session-fields} documents the \texttt{gemini\_sessions} document written by the proxy and backend aggregators. These fields power billing dashboards and operational queries.
+
+\tablesetup
+\begin{table}[H]
+\centering
+\caption{\texttt{gemini\_sessions} field reference.}
+\label{tab:gemini-session-fields}
+\small
+\begin{tabular}{|p{3.0cm}|p{1.9cm}|p{8.3cm}|}
+\hline
+\chead{Field} & \chead{Type} & \chead{Semantics} \\
+\hline
+\texttt{uid} & string & Firebase user or anonymous UID \\
+\texttt{startTime} & timestamp & WebSocket accept time (proxy clock) \\
+\texttt{endTime} & timestamp & Close or idle timeout \\
+\texttt{tokenUsage.input} & int & Cumulative prompt tokens from \texttt{usageMetadata} \\
+\texttt{tokenUsage.output} & int & Cumulative response tokens \\
+\texttt{messageCount} & int & Frames routed (Algorithm~\ref{alg:a2}) \\
+\texttt{modality} & string & \texttt{voice}, \texttt{text}, \texttt{webcam}, \texttt{screen} \\
+\texttt{status} & string & \texttt{active}, \texttt{closed}, \texttt{error} \\
+\texttt{closeCode} & int & WebSocket close code (Table~\ref{tab:close-codes}) \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{\texttt{course\_profiles} (Planned)}
+\label{sec:course-profiles-impl}
+
+The deployed backend today writes a single \texttt{conversations/\{id\}.summary} per feedback event (Algorithm~\ref{alg:a5}). Section~\ref{sec:multi-intent} extends this with a per-course subcollection so session priming can select top-$k$ intent profiles instead of one collapsed persona. The change is confined to Firestore triggers and prompt assembly; the Gemini Proxy transport is unchanged.
+
+Listing~\ref{lst:course-profile-doc} shows the planned document shape under \texttt{users/\{uid\}/course\_profiles/\{courseId\}}. The feedback trigger will upsert this document alongside the conversation summary.
+
+\begin{lstlisting}[caption={Planned Firestore document for \texttt{course\_profiles/\{courseId\}} (JSON).},label=lst:course-profile-doc]
+// users/{uid}/course_profiles/{courseId}
+{
+  "rollingSummary": "Weak on async/await; strong on DOM APIs.",
+  "topics": ["async/await", "closures", "DOM"],
+  "masteryScore": 0.62,
+  "lastActiveAt": "2026-05-19T08:30:00.000Z",
+  "embedding": null
+}
+\end{lstlisting}
+
+Listing~\ref{lst:build-context} sketches the backend call site before opening a lesson session: \textsc{BuildSessionContext} (Algorithm~\ref{alg:context}) merges the active course profile with up to $k-1$ recent alternatives, then injects the result into the Gemini system prompt.
+
+\begin{lstlisting}[caption={Planned session priming hook (\texttt{sprout-backend}).},label=lst:build-context]
+async function primeLessonSession(uid: string, courseId: string, lessonId: string) {
+  const ctx = await buildSessionContext(uid, courseId, lessonId, { k: 2 });
+  return {
+    systemInstruction: formatSystemPrompt(ctx),
+    lessonId,
+    courseId,
+  };
+}
+\end{lstlisting}
+
+Rollout is incremental: ship schema and trigger writes first (dual-write to \texttt{summary} and \texttt{course\_profiles}), then switch priming to \texttt{buildSessionContext} behind a feature flag for the Phase~3 A/B in Section~\ref{sec:online-protocol}.
 
 \section{Cloud Run Deployment}
 \label{sec:cloudrun}

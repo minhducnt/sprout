@@ -6,6 +6,64 @@
 
 Three environments are maintained: \texttt{dev}, \texttt{uat}, and \texttt{prod}, each in a separate GCP project with isolated Firebase, Firestore, Secret Manager, and Cloud Tasks. Branch mapping: \texttt{develop} $\rightarrow$ dev, \texttt{uat} $\rightarrow$ uat, \texttt{master} $\rightarrow$ prod. GitLab CI runs \texttt{terraform plan/apply} with matching \texttt{<env>.tfvars}.
 
+Table~\ref{tab:env-matrix} summarises how environments differ for the AI subsystem. Production is the only environment that serves anonymous learners at scale; UAT mirrors prod topology with reduced quotas.
+
+\tablesetup
+\begin{table}[H]
+\centering
+\caption{Environment matrix for the AI subsystem.}
+\label{tab:env-matrix}
+\small
+\begin{tabular}{|l|c|c|c|}
+\hline
+\TblHead{Property} & \TblHead{dev} & \TblHead{uat} & \TblHead{prod} \\
+\hline
+GCP project & \texttt{sprout-dev} & \texttt{sprout-uat} & \texttt{sprout-prod} \\
+Gemini model & Flash (preview) & Flash & Flash / Pro (flag) \\
+Proxy \texttt{min-instances} & 0 & 1 & 1 \\
+Free-tier minutes / month & 120 & 60 & 60 \\
+Mixpanel project & dev & uat & prod \\
+Synthetic agent schedule & on deploy & hourly & every 15\,min \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{CI/CD Pipeline}
+\label{sec:cicd}
+
+Table~\ref{tab:cicd} lists the GitLab stages that touch the AI subsystem. Proxy and backend deploy independently so a regression in Cloud Functions cannot block a hotfix to WebSocket routing.
+
+\tablesetup
+\begin{table}[H]
+\centering
+\caption{GitLab CI stages for AI-related artefacts.}
+\label{tab:cicd}
+\small
+\begin{tabular}{|p{2.2cm}|p{3.5cm}|p{6.6cm}|}
+\hline
+\TblHead{Stage} & \TblHead{Trigger} & \TblHead{Actions} \\
+\hline
+lint & MR to \code{develop} & ESLint on \code{sprout-web}, \code{gemini-proxy}, functions \\
+\hline
+test & MR to \code{develop} & Jest unit tests; proxy JWT negative suite \\
+\hline
+build & merge to \code{develop} & Docker image $\rightarrow$ Artifact Registry \\
+\hline
+terraform & manual approve & \code{plan/apply} per environment \\
+\hline
+deploy-proxy & post-apply & Cloud Run revision; 10\% canary in prod \\
+\hline
+deploy-backend & post-apply & Firebase Functions; Firestore rules \\
+\hline
+deploy-web & post-apply & Static export to Hosting \\
+\hline
+synthetic & post-deploy & WebSocket smoke test; alert on failure \\
+\hline
+\end{tabular}
+\end{table}
+
+Average lead time from merge to prod proxy deploy is 22 minutes when Terraform plans are clean; rollbacks use traffic shifting to the previous revision within five minutes (Section~\ref{sec:rollback}).
+
 \section{Terraform State}
 \label{sec:terraform}
 

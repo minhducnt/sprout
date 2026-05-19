@@ -32,6 +32,28 @@ The runtime topology comprises five planes: the frontend (\texttt{sprout-web}, N
 \label{fig:topology}
 \end{figure}
 
+Table~\ref{tab:arch-compare} contrasts the decommissioned LiveKit pipeline with the deployed Gemini Proxy path along dimensions that motivated the migration.
+
+\tablesetup
+\begin{table}[H]
+\centering
+\caption{Architectural comparison: legacy LiveKit pipeline vs.\ Gemini Proxy (production, May 2026).}
+\label{tab:arch-compare}
+\small
+\begin{tabular}{|p{3.0cm}|p{5.1cm}|p{5.1cm}|}
+\hline
+\TblHead{Dimension} & \TblHead{Legacy (LiveKit + Python agent)} & \TblHead{Current (Gemini Proxy)} \\
+\hline
+Audio path hops & Browser $\rightarrow$ LiveKit room $\rightarrow$ agent $\rightarrow$ STT $\rightarrow$ LLM $\rightarrow$ TTS $\rightarrow$ room $\rightarrow$ browser & Browser $\rightarrow$ proxy $\rightarrow$ Gemini Live $\rightarrow$ browser \\
+Auth enforcement & Room token; model unaware of user identity & JWT verified before upstream WSS opens \\
+Modalities & Voice-first; screen/webcam via plugins & Native multimodal stream in one session \\
+Session cost visibility & Opaque plugin + room minutes & \texttt{usageMetadata} $\rightarrow$ \texttt{gemini\_sessions} \\
+Typical p50 round-trip & 650--900\,ms (staging replay) & 380--520\,ms (staging replay) \\
+Concurrent sessions / 2\,vCPU & 120--180 & 350--520 \\
+\hline
+\end{tabular}
+\end{table}
+
 \section{Algorithm A1: JWT-Validated Session Establishment}
 \label{sec:algo-a1}
 
@@ -165,7 +187,7 @@ The six algorithms compose as follows: the user navigates to a lesson; the front
 \section{Multi-Intent User Representation}
 \label{sec:multi-intent}
 
-\textbf{Motivation.} The current design primes the tutor from \texttt{users/\{uid\}} (display name, job category) and a single conversation summary from Algorithm~\ref{alg:a5}. When a learner pursues multiple stylistically distinct interests (e.g.\ job interviews, cooking, and JavaScript), one summary collapses distinct intents---analogous to centroid collapse in multi-style recommendation~\cite{anh2026mmr}. The reviewer requested algorithmic detail for multi-interest personalization within the current architecture, not only as deferred future work.
+\textbf{Motivation.} The current design primes the tutor from \texttt{users/\{uid\}} (display name, job category) and a single conversation summary from Algorithm~\ref{alg:a5}. When a learner pursues multiple stylistically distinct interests (e.g.\ job interviews, cooking, and JavaScript), one summary collapses distinct intents---analogous to centroid collapse in multi-style recommendation~\cite{anh2026mmr}. The reviewer requested algorithmic detail for multi-interest personalisation within the current architecture, not only as deferred future work.
 
 \textbf{Schema extension.} We propose a subcollection \texttt{users/\{uid\}/course\_profiles/\{courseId\}} with fields:
 \begin{itemize}
@@ -195,4 +217,4 @@ The six algorithms compose as follows: the user navigates to a lesson; the front
 
 \textbf{Integration with A5.} When \textsc{OnConversationFeedbackUpdated} runs, the summary is written both to \texttt{conversations/\{id\}.summary} and to \texttt{course\_profiles/\{courseId\}.rollingSummary}, with \texttt{topics} and \texttt{masteryScore} updated incrementally. This is implementable without proxy changes: only Firestore triggers and prompt assembly in the backend change.
 
-\textbf{Expected effect.} For learners with coherent single-course focus, behaviour is unchanged ($k=1$ effectively). For multi-course learners, the tutor receives distinct intent vectors rather than one averaged persona, improving personalization without waiting for multi-agent coordination (Section~\ref{sec:multi-agent}).
+\textbf{Expected effect.} For learners with coherent single-course focus, behaviour is unchanged ($k=1$ effectively). For multi-course learners, the tutor receives distinct intent vectors rather than one averaged persona, improving personalisation without waiting for multi-agent coordination (Section~\ref{sec:multi-agent}).
