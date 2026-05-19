@@ -19,19 +19,20 @@ Sprout supports three first-class user roles, plus an administrative role:
 
 Table~\ref{tab:modalities} enumerates the four interaction modalities supported by the AI tutor. All four flow through the same Gemini Proxy WebSocket; the proxy is modality-agnostic and forwards opaque framed payloads.
 
+\tablesetup
 \begin{table}[H]
 \centering
 \caption{Supported interaction modalities and their primary teaching use cases.}
 \label{tab:modalities}
-\begin{tabular}{@{}p{2.8cm}p{4.5cm}p{5.5cm}@{}}
-\toprule
-\textbf{Modality} & \textbf{User experience} & \textbf{Primary teaching use case} \\
-\midrule
+\begin{tabular}{|p{2.6cm}|p{4.4cm}|p{5.5cm}|}
+\hline
+\TblHead{Modality} & \TblHead{User experience} & \TblHead{Primary teaching use case} \\
+\hline
 Voice & Hands-free spoken dialogue with synthetic-voice replies & Language learning, interview practice, concept explanation \\
 Text chat & Typed exchange in a chat-style transcript & Accessibility, structured Q\&A, code copy-paste \\
 Webcam & Model receives the learner's video stream & Public-speaking practice, posture and eye-contact feedback \\
 Screen sharing & Model receives a frame stream of the learner's screen & Programming help, software literacy \\
-\bottomrule
+\hline
 \end{tabular}
 \end{table}
 
@@ -53,23 +54,50 @@ Figure~\ref{fig:userflow} sketches the end-to-end flow from skill discovery to p
 
 Sprout records information in Firestore. Table~\ref{tab:firestore} summarises the collections central to the AI subsystem. The most important property is that the schema is addressable from both frontend (Firestore client SDK) and agent (message writes, completion updates), enabling dual-channel completion detection (Section~\ref{sec:algo-a4}).
 
+\tablesetup
 \begin{table}[H]
 \centering
 \caption{Firestore collections relevant to the AI subsystem.}
 \label{tab:firestore}
 \small
-\begin{tabular}{@{}p{2.8cm}p{9.5cm}@{}}
-\toprule
-\textbf{Collection} & \textbf{Purpose and key fields} \\
-\midrule
+\begin{tabular}{|p{2.7cm}|p{9.4cm}|}
+\hline
+\TblHead{Collection} & \TblHead{Purpose and key fields} \\
+\hline
 \texttt{users} & Profile and roles: \texttt{uid}, \texttt{email}, \texttt{display\_name}, \texttt{roles[]}, \texttt{selected\_job\_category}. Used to prime the tutor. \\
+\texttt{users/\{uid\}/course\_profiles} & Per-course intent profile (planned, Section~\ref{sec:multi-intent}): \texttt{rollingSummary}, \texttt{topics[]}, \texttt{masteryScore}, \texttt{lastActiveAt}. Updated by Algorithm~\ref{alg:a5}; selected by \textsc{BuildSessionContext}. \\
 \texttt{courses} & Course metadata and AI-generated knowledge map: \texttt{title}, \texttt{knowledgeMap} (DAG), \texttt{createdBy}. \\
 \texttt{lessons} & Lesson content and per-user state: \texttt{courseId}, \texttt{title}, \texttt{content}, \texttt{is\_open}, \texttt{is\_completed}. \\
 \texttt{conversations} & Per-session metadata: \texttt{member\_uids[]}, \texttt{course\_id}, \texttt{modality}, \texttt{model}, \texttt{feedback}. \\
 \texttt{messages} & Per-turn transcript: \texttt{conversationId}, \texttt{authorId}, \texttt{role}, \texttt{content}, \texttt{createdAt}. \\
 \texttt{gemini\_sessions} & Per-WebSocket telemetry: \texttt{uid}, \texttt{startTime}, \texttt{endTime}, \texttt{tokenUsage}, \texttt{messageCount}, \texttt{status}. \\
 \texttt{tasks} & Cloud Tasks records for asynchronous generation. \\
-\bottomrule
+\hline
+\end{tabular}
+\end{table}
+
+\section{Session Lifecycle States}
+\label{sec:session-states}
+
+Table~\ref{tab:session-states} defines the session state machine visible to operators through \texttt{gemini\_sessions.status} and Mixpanel funnels. Transitions are driven by Algorithms~\ref{alg:a1}--\ref{alg:a2}.
+
+\tablesetup
+\begin{table}[H]
+\centering
+\caption{Gemini tutoring session lifecycle states.}
+\label{tab:session-states}
+\small
+\begin{tabular}{|p{2.1cm}|p{4.4cm}|p{6.8cm}|}
+\hline
+\TblHead{State} & \TblHead{Entry condition} & \TblHead{Persisted artefacts} \\
+\hline
+\texttt{connecting} & Client opens WSS; JWT presented & --- \\
+\texttt{active} & Upstream Gemini Live connected & \texttt{gemini\_sessions} created; messages stream \\
+\texttt{idle} & No frames for 30\,s & \texttt{lastActiveAt} updated \\
+\texttt{closing} & User exit or idle timeout & Final \texttt{tokenUsage} flush \\
+\texttt{closed} & Both sockets closed & \texttt{endTime}, \texttt{closeCode} set \\
+\texttt{error} & Upstream or auth failure & \texttt{closeCode} 44xx/45xx; alert if rate $>$ 2\% \\
+\hline
 \end{tabular}
 \end{table}
 

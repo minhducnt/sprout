@@ -1,0 +1,39 @@
+% Table and code listing conventions for the Sprout report.
+% No colortbl dependency (works with BasicTeX without extra tlmgr packages).
+
+\definecolor{sproutcodebg}{RGB}{248,248,248}
+\definecolor{sproutcodeframe}{RGB}{90,90,90}
+\definecolor{sproutcodelinenumber}{RGB}{130,130,130}
+
+\newcommand{\tablesetup}{\renewcommand{\arraystretch}{1.22}}
+
+\newcommand{\TblHead}[1]{\textbf{#1}}
+
+\lstdefinestyle{sproutcode}{
+    backgroundcolor=\color{sproutcodebg},
+    rulecolor=\color{sproutcodeframe},
+    frame=single,
+    framesep=7pt,
+    framerule=0.5pt,
+    xleftmargin=0pt,
+    xrightmargin=0pt,
+    basicstyle=\small\ttfamily,
+    numbers=left,
+    numberstyle=\tiny\color{sproutcodelinenumber},
+    stepnumber=1,
+    numbersep=8pt,
+    breaklines=true,
+    breakatwhitespace=true,
+    postbreak=\mbox{\textcolor{sproutcodeframe}{\tiny$\hookrightarrow$}\space},
+    columns=fullflexible,
+    keepspaces=true,
+    showstringspaces=false,
+    tabsize=2,
+    captionpos=b,
+    aboveskip=1em,
+    belowskip=1em,
+}
+
+\lstset{style=sproutcode}
+
+\newcommand{\code}[1]{\texttt{#1}}

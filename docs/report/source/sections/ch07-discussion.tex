@@ -27,7 +27,7 @@ The proxy is deployed in one Google Cloud region. Users far from the region pay 
 
 The \emph{deployed} system currently primes the tutor from \texttt{users/\{uid\}} and a single conversation summary from Algorithm~\ref{alg:a5}. This single-vector model degrades when interests are multi-modal.
 
-\textbf{Mitigation in current architecture.} Section~\ref{sec:multi-intent} proposes \texttt{course\_profiles} and Algorithm~\ref{alg:context} (\textsc{BuildSessionContext}) as an implementable extension requiring only Firestore trigger and prompt-assembly changes---no proxy modification. This directly addresses the reviewer feedback that multi-interest personalization should not be deferred entirely to future work. Pilot implementation of course-scoped summaries can ship before multi-agent coordination (Section~\ref{sec:multi-agent}).
+\textbf{Mitigation in current architecture.} Section~\ref{sec:multi-intent} proposes \texttt{course\_profiles} and Algorithm~\ref{alg:context} (\textsc{BuildSessionContext}) as an implementable extension requiring only Firestore trigger and prompt-assembly changes---no proxy modification. This directly addresses the reviewer feedback that multi-interest personalisation should not be deferred entirely to future work. Pilot implementation of course-scoped summaries can ship before multi-agent coordination (Section~\ref{sec:multi-agent}).
 
 \subsection{External AI Dependency}
 \label{sec:limit-dependency}
@@ -38,6 +38,38 @@ The platform depends on Google Gemini Live API for the entire conversational lay
 \label{sec:limit-offline}
 
 Evaluation (Chapter~\ref{ch:evaluation}) is predominantly offline: operational metrics and behavioural metrics computed post-hoc. There is no controlled production A/B against the decommissioned LiveKit baseline. Comparative claims in Section~\ref{sec:baseline} are direction-of-magnitude. Section~\ref{sec:online-protocol} specifies a phased protocol to strengthen causal evidence.
+
+\section{Design Trade-offs}
+\label{sec:tradeoffs}
+
+Table~\ref{tab:tradeoffs} records major architectural decisions and the rationale accepted for the internship deliverable. Each row reflects a constraint encountered in production rather than a theoretical preference.
+
+\tablesetup
+\begin{table}[H]
+\centering
+\caption{Design trade-offs in the Sprout AI subsystem.}
+\label{tab:tradeoffs}
+\small
+\begin{tabular}{|p{3.0cm}|p{4.8cm}|p{4.8cm}|}
+\hline
+\TblHead{Decision} & \TblHead{Chosen} & \TblHead{Alternative rejected} \\
+\hline
+Transport & WebSocket proxy to Gemini Live & LiveKit room + Python agent chain \\
+\hline
+Auth & JWT in query on upgrade & Post-connect REST auth (extra RTT) \\
+\hline
+Media storage & Transcript-only in Firestore & Raw A/V archive (cost, privacy) \\
+\hline
+Completion & Dual-channel poll + agent write & Agent-only (misses early exit) \\
+\hline
+Priming & Global summary (today) & Per-course profiles (planned, \S\ref{sec:multi-intent}) \\
+\hline
+Eval & Offline pilot + observability & Full LiveKit A/B (decommissioned) \\
+\hline
+\end{tabular}
+\end{table}
+
+The trade-off matrix should be read together with the pilot tables in Chapter~\ref{ch:evaluation} and the appendix funnel snapshot (Table~\ref{tab:appendix-funnel}). Together they explain why the team prioritised shipping a thin gateway with measurable telemetry over re-building the heavier agent framework.
 
 \section{Threats to Validity}
 \label{sec:threats}

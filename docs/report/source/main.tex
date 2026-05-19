@@ -1,10 +1,8 @@
 % !TEX program = xelatex
 \documentclass[12pt]{report}
-\usepackage[fontsize=13pt]{scrextend}
 \usepackage[a4paper,top=2cm,bottom=2cm,left=3cm,right=2cm]{geometry}
 \usepackage{fontspec}
 \usepackage{array}
-\usepackage{booktabs}
 \usepackage{xcolor}
 \usepackage[backend=bibtex,style=numeric,sorting=none]{biblatex}
 \addbibresource{ref.bib}
@@ -25,8 +23,11 @@
 \usepackage{hyperref}
 \usepackage{longtable}
 \usepackage{graphicx}
+\usepackage{indentfirst}
 \usetikzlibrary{positioning,arrows.meta}
 
+\setlength{\parindent}{1.27cm}
+\setlength{\parskip}{0pt plus 1pt}
 \linespread{1.5}
 \hypersetup{
     colorlinks,
@@ -34,14 +35,6 @@
     filecolor=black,
     linkcolor=black,
     urlcolor=black
-}
-
-\lstset{
-    basicstyle=\small\ttfamily,
-    numbers=left,
-    frame=single,
-    breaklines=true,
-    columns=fullflexible,
 }
 
 \renewcommand{\chaptername}{Chapter}
@@ -53,6 +46,7 @@
 \titleformat{\chapter}[display]{\normalfont\huge\bfseries}{\chaptertitlename\ \thechapter}{20pt}{\Huge}
 
 \input{sections/figures}
+\input{sections/formatting}
 
 \begin{document}
 
@@ -80,6 +74,9 @@
 \input{sections/ch07-discussion}
 \input{sections/ch08-operations}
 \input{sections/ch09-conclusion}
+
+\appendix
+\input{sections/appendix}
 
 \input{sections/references}
 

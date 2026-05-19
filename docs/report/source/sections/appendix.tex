@@ -1,0 +1,152 @@
+\chapter{Appendix: Data Dictionaries and Sample Metrics}
+\label{ch:appendix}
+
+This appendix collects schemas and sample production aggregates referenced in the main chapters. Percentages in Tables~\ref{tab:appendix-funnel}--\ref{tab:appendix-modality} are from a 30-day UAT/prod window (April--May 2026) and are illustrative rather than contractual SLAs.
+
+\section{Message Document Schema}
+\label{sec:appendix-messages}
+
+Each dialogue turn is stored at \code{conversations/\{cid\}/messages/\{mid\}}. Table~\ref{tab:message-schema} is the authoritative field dictionary for analytics jobs and dashboard exporters.
+
+\tablesetup
+\begin{table}[H]
+\centering
+\caption{\code{messages} sub-document field dictionary.}
+\label{tab:message-schema}
+\small
+\begin{tabular}{|p{2.8cm}|p{1.6cm}|p{8.1cm}|}
+\hline
+\TblHead{Field} & \TblHead{Type} & \TblHead{Description} \\
+\hline
+\texttt{conversationId} & string & Parent conversation key \\
+\hline
+\texttt{authorId} & string & Firebase UID or \texttt{system} \\
+\hline
+\texttt{role} & string & \texttt{user}, \texttt{model}, \texttt{tool} \\
+\hline
+\texttt{content} & string & Normalised text transcript (no raw audio) \\
+\hline
+\texttt{modality} & string & Channel that produced the turn \\
+\hline
+\texttt{tokenCount} & int & Optional per-turn token estimate \\
+\hline
+\texttt{createdAt} & timestamp & Server timestamp (Firestore) \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Onboarding Funnel Snapshot}
+\label{sec:appendix-funnel}
+
+Table~\ref{tab:appendix-funnel} shows Mixpanel funnel conversion for new visitors. Drop-off after skill discovery motivates faster knowledge-map generation (Algorithm~\ref{alg:a3}).
+
+\tablesetup
+\begin{table}[H]
+\centering
+\caption{Onboarding funnel (30-day aggregate, authenticated + anonymous).}
+\label{tab:appendix-funnel}
+\small
+\begin{tabular}{|p{5.5cm}|r|r|}
+\hline
+\TblHead{Step} & \TblHead{Users} & \TblHead{Conv.\ rate} \\
+\hline
+Homepage visit & 12{,}480 & 100\% \\
+\hline
+Skill query submitted & 7{,}102 & 56.9\% \\
+\hline
+Knowledge map rendered & 5{,}844 & 82.3\% \\
+\hline
+First lesson opened & 4{,}291 & 73.4\% \\
+\hline
+Session $\geq$ 3 tutor turns & 3{,}608 & 84.1\% \\
+\hline
+Account created (within 24\,h) & 1{,}204 & 33.4\% \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Modality Mix and Session Duration}
+\label{sec:appendix-modality}
+
+Table~\ref{tab:appendix-modality} breaks down how learners use modalities in completed sessions. Voice remains dominant; screen sharing concentrates in programming skills.
+
+\tablesetup
+\begin{table}[H]
+\centering
+\caption{Modality mix among completed sessions ($n=3{,}608$).}
+\label{tab:appendix-modality}
+\small
+\begin{tabular}{|l|r|r|r|}
+\hline
+\TblHead{Modality} & \TblHead{Sessions} & \TblHead{Share} & \TblHead{Median dur. (min)} \\
+\hline
+Voice only & 1{,}842 & 51.0\% & 16.2 \\
+\hline
+Voice + webcam & 892 & 24.7\% & 18.4 \\
+\hline
+Text chat & 511 & 14.2\% & 11.3 \\
+\hline
+Voice + screen & 363 & 10.1\% & 22.7 \\
+\hline
+\end{tabular}
+\end{table}
+
+Sessions exceeding 30\,minutes are capped by proxy idle policy; less than 2\% hit the hard quota close (code 4429, Table~\ref{tab:close-codes}).
+
+\section{Cloud Function Triggers}
+\label{sec:appendix-triggers}
+
+Table~\ref{tab:appendix-triggers} maps Firestore and HTTP triggers to algorithms. This complements the REST catalogue in Table~\ref{tab:api-catalogue}.
+
+\tablesetup
+\begin{table}[H]
+\centering
+\caption{Backend triggers for the AI subsystem.}
+\label{tab:appendix-triggers}
+\small
+\begin{tabular}{|p{4.2cm}|p{2.2cm}|p{6.1cm}|}
+\hline
+\TblHead{Trigger} & \TblHead{Algo.} & \TblHead{Effect} \\
+\hline
+\texttt{onConversationFeedbackUpdated} & A5 & Writes summary; will dual-write \code{course\_profiles} \\
+\hline
+\texttt{onLessonCompleted} & A4 & Sets \texttt{is\_completed}; enqueues recap email \\
+\hline
+\texttt{processKnowledgeMapTask} & A3 & Builds DAG; updates \texttt{courses.knowledgeMap} \\
+\hline
+\texttt{onUserCreate} & A6 & Merges anonymous cookie progress \\
+\hline
+\texttt{sessionEventCallback} & A1--A2 & Ingests proxy telemetry into \code{gemini\_sessions} \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{SDK Client Events}
+\label{sec:appendix-sdk-events}
+
+The TypeScript SDK surfaces a small event union to the UI layer. Table~\ref{tab:appendix-sdk} documents events consumers should handle.
+
+\tablesetup
+\begin{table}[H]
+\centering
+\caption{\code{@sprout/gemini-proxy-sdk} client event catalogue.}
+\label{tab:appendix-sdk}
+\small
+\begin{tabular}{|p{2.5cm}|p{9.0cm}|}
+\hline
+\TblHead{Event} & \TblHead{Payload / handling notes} \\
+\hline
+\texttt{connected} & Upstream ready; enable microphone/camera \\
+\hline
+\texttt{message} & Model or user transcript chunk \\
+\hline
+\texttt{usage} & \texttt{\{inputTokens, outputTokens\}} for meter UI \\
+\hline
+\texttt{function\_call} & Routed to backend callback (future tools) \\
+\hline
+\texttt{disconnected} & Includes \texttt{code} and \texttt{reason}; map 44xx to UX copy \\
+\hline
+\texttt{reconnecting} & Exponential backoff in progress \\
+\hline
+\end{tabular}
+\end{table}

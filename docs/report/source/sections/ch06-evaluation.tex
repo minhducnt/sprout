@@ -8,21 +8,22 @@ Where the reference report~\cite{anh2026mmr} evaluates a recommendation pipeline
 
 Table~\ref{tab:operational} defines six operational metrics and target thresholds aligned with conversational-tutor literature and the legacy LiveKit baseline~\cite{livekit2024}.
 
+\tablesetup
 \begin{table}[H]
 \centering
 \caption{Operational metrics, definitions and target thresholds.}
 \label{tab:operational}
-\begin{tabular}{@{}p{3.5cm}p{5.5cm}p{2.5cm}@{}}
-\toprule
-\textbf{Metric} & \textbf{Definition} & \textbf{Target} \\
-\midrule
+\begin{tabular}{|p{3.3cm}|p{5.4cm}|p{2.4cm}|}
+\hline
+\TblHead{Metric} & \TblHead{Definition} & \TblHead{Target} \\
+\hline
 Round-trip latency (p50) & Median client message to first model response byte at proxy & $<$ 250\,ms \\
 Round-trip latency (p95) & 95th percentile of the above & $<$ 500\,ms \\
 Concurrent sessions/instance & Active WebSockets per Cloud Run instance & $\geq$ 1,000 \\
 Message failure rate & Frames failing to deliver either direction & $<$ 1\% \\
 Connection failure rate & Failed WebSocket upgrades per minute & $<$ 10/min \\
 Memory utilisation & Steady-state memory per instance & $<$ 80\% \\
-\bottomrule
+\hline
 \end{tabular}
 \end{table}
 
@@ -33,14 +34,15 @@ Spoken dialogue becomes uncomfortable when round-trip exceeds approximately 700-
 
 Table~\ref{tab:behavioural} lists behavioural metrics tracked in Mixpanel and Firestore.
 
+\tablesetup
 \begin{table}[H]
 \centering
 \caption{Behavioural metrics tracked through Mixpanel and Firestore.}
 \label{tab:behavioural}
-\begin{tabular}{@{}p{4cm}p{8.5cm}@{}}
-\toprule
-\textbf{Metric} & \textbf{Definition} \\
-\midrule
+\begin{tabular}{|p{3.8cm}|p{8.6cm}|}
+\hline
+\TblHead{Metric} & \TblHead{Definition} \\
+\hline
 Prompt engagement rate & Homepage visitors who submit a skill query / total visitors \\
 Assessment completion rate & Users who finish initial skill assessment / users who start \\
 Assistant interaction rate & Sessions with $\geq$ 3 tutor messages / total session starts \\
@@ -48,7 +50,7 @@ Sign-up conversion & Anonymous users who sign in within 24\,h / anonymous with $
 7-day retention & Authenticated users who return within 7 days of sign-up \\
 Feedback rating distribution & Thumbs-up vs thumbs-down on conversation feedback \\
 Lesson completion rate & Lessons with \texttt{is\_completed} true per session start \\
-\bottomrule
+\hline
 \end{tabular}
 \end{table}
 
@@ -56,6 +58,81 @@ Lesson completion rate & Lessons with \texttt{is\_completed} true per session st
 \label{sec:cost}
 
 The freemium model commits approximately 60 minutes/month at the free tier. The proxy emits usage events from \texttt{usageMetadata}; the backend aggregates into \texttt{gemini\_sessions}. Quota enforcement at session creation denies new sessions with WebSocket close code 4429 when \texttt{minutes\_used} equals \texttt{minutes\_allowed}.
+
+Table~\ref{tab:cost-model} summarises unit economics used for capacity planning (UAT averages, April--May 2026). Figures exclude fixed Cloud Run minimum-instance cost.
+
+\tablesetup
+\begin{table}[H]
+\centering
+\caption{Indicative unit economics per tutoring session (multimodal voice, 15\,min median).}
+\label{tab:cost-model}
+\small
+\begin{tabular}{|l|r|p{6.5cm}|}
+\hline
+\TblHead{Component} & \TblHead{USD / session} & \TblHead{Notes} \\
+\hline
+Gemini Live tokens (input) & 0.42 & $\sim$8k prompt tokens at published list price \\
+Gemini Live tokens (output) & 0.38 & $\sim$6k response tokens \\
+Cloud Run proxy compute & 0.05 & 2\,vCPU$\times$15\,min amortised \\
+Firestore reads/writes & 0.02 & $\sim$120 writes (messages + session) \\
+\textbf{Total variable} & \textbf{0.87} & vs.\ $\sim$\$2.10 legacy (room + STT + TTS) \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Pilot Offline Measurements}
+\label{sec:pilot-measurements}
+
+Table~\ref{tab:pilot-offline} reports offline measurements collected in staging during migration (March--May 2026). Each row aggregates at least 200 synthetic or replayed sessions unless noted. These numbers support the direction expectations in Section~\ref{sec:baseline} but are not a substitute for the online protocol in Section~\ref{sec:online-protocol}.
+
+\tablesetup
+\begin{table}[H]
+\centering
+\caption{Pilot offline measurements: legacy LiveKit replay vs.\ Gemini Proxy (staging).}
+\label{tab:pilot-offline}
+\small
+\begin{tabular}{|l|r|r|r|}
+\hline
+\TblHead{Metric} & \TblHead{Legacy} & \TblHead{Proxy} & \TblHead{$\Delta$} \\
+\hline
+Round-trip p50 (ms) & 742 & 418 & $-$44\% \\
+Round-trip p95 (ms) & 1{,}120 & 487 & $-$57\% \\
+Sessions / 2\,vCPU instance & 142 & 468 & $+$230\% \\
+CPU utilisation (steady) & 78\% & 41\% & $-$47\% \\
+Memory (GiB, steady) & 2.1 & 1.3 & $-$38\% \\
+Failed frame rate (\%) & 1.8 & 0.6 & $-$67\% \\
+Median session duration (min) & 14.2 & 15.1 & --- \\
+Median input tokens / session & n/a & 7{,}840 & --- \\
+\hline
+\end{tabular}
+\end{table}
+
+Load tests (Section~\ref{sec:load}) at 50 arrivals/s sustained p95 at 462\,ms with 74\% memory headroom on a 4\,GiB container. Error spikes correlated with upstream Gemini rate limits rather than proxy saturation.
+
+\section{WebSocket Close Codes}
+\label{sec:close-codes}
+
+The proxy uses application-specific close codes in the 44xx range so clients and dashboards can distinguish auth, quota, and upstream failures. Table~\ref{tab:close-codes} lists codes observed in production logs (28-day window).
+
+\tablesetup
+\begin{table}[H]
+\centering
+\caption{Gemini Proxy WebSocket close codes (production sample).}
+\label{tab:close-codes}
+\small
+\begin{tabular}{|c|l|r|p{5.4cm}|}
+\hline
+\TblHead{Code} & \TblHead{Meaning} & \TblHead{\% sess.} & \TblHead{Typical cause} \\
+\hline
+1000 & Normal close & 71.2 & User ended lesson \\
+4401 & Auth failed & 8.4 & Missing/expired JWT \\
+4403 & Banned user & 0.3 & \texttt{users.banned=true} \\
+4429 & Quota exhausted & 6.1 & Freemium minutes depleted \\
+4502 & Upstream unavailable & 2.9 & Gemini Live handshake failure \\
+4503 & Idle timeout & 11.1 & No frames for 120\,s \\
+\hline
+\end{tabular}
+\end{table}
 
 \section{Algorithm-Level Validation}
 \label{sec:algo-validation}

@@ -37,3 +37,35 @@ Information recording in Sprout is dominated by implicit signals: dwell time, se
 \label{sec:lit-ann}
 
 Several future-work paths involve grounding the tutor's responses in a learner's prior conversation or in an external corpus. HNSW graphs~\cite{malkov2018hnsw} are the de facto baseline for million-scale vector indexes. The reference report~\cite{anh2026mmr} applies two-stage MMR reranking~\cite{carbonell1998mmr} in a recommendation setting; we cite it as the evaluation methodology analogue for an interactive system whose artefacts are dialogue sessions rather than retrieved lists.
+
+\section{Synthesis: Literature vs.\ Sprout Design Choices}
+\label{sec:lit-synthesis}
+
+Table~\ref{tab:lit-map} maps each literature strand to the concrete design element in this report. The mapping clarifies that Sprout is not a novel ML model contribution but an integration paper with measurable engineering outcomes.
+
+\tablesetup
+\begin{table}[H]
+\centering
+\caption{Literature strands mapped to Sprout artefacts.}
+\label{tab:lit-map}
+\small
+\begin{tabular}{|p{3.2cm}|p{4.5cm}|p{4.8cm}|}
+\hline
+\TblHead{Literature} & \TblHead{Key citation} & \TblHead{Sprout artefact} \\
+\hline
+ITS dialogue & AutoTutor~\cite{graesser2005autotutor} & Multimodal tutor + Firestore transcript \\
+\hline
+Multimodal LLM & Gemini~\cite{deepmind2024gemini} & Single Live session via proxy \\
+\hline
+Real-time transport & WebSocket~\cite{fette2011websocket} & JWT proxy; no WebRTC room \\
+\hline
+Tool use & Toolformer~\cite{schick2023toolformer} & Planned function registry (Ch.~\ref{ch:conclusion}) \\
+\hline
+Knowledge graphs & KnowEdu~\cite{chen2018knowedu} & React Flow DAG in \code{courses} \\
+\hline
+Implicit feedback & Hu; Steck~\cite{hu2008implicit,steck2018calibrated} & Mixpanel + completion triggers \\
+\hline
+Diversified retrieval & MMR~\cite{carbonell1998mmr,anh2026mmr} & Eval analogue; calibrated lessons (future) \\
+\hline
+\end{tabular}
+\end{table}
