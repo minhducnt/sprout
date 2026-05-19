@@ -10,6 +10,8 @@ Sprout is built on this premise. It is an AI-powered adaptive learning platform 
 
 What makes those behaviours economically interesting is replacement pressure. Human one-on-one tutoring costs roughly \$20--\$50/hour; an LLM-driven session approaches \$2--\$3/hour at typical token usage. The technical question---how do we deliver such a session reliably, cheaply and observably?---is the subject of this report.
 
+\SproutSystemOverview
+
 \section{Problem Statement}
 \label{sec:problem}
 
@@ -43,7 +45,7 @@ The principal contributions of this report are:
     \item A reproducible system architecture from the browser WebSocket to the Gemini Live API and back, with explicit component boundaries and deployment artefacts.
     \item A formalisation of six core algorithms governing the AI subsystem.
     \item A Firestore-grounded data model that records every modality of dialogue plus aggregate session statistics.
-    \item A typed client SDK contract (\texttt{@abyxolv/gemini-proxy-sdk}) that hides WebSocket reconnection, JWT refresh, and audio framing from the rest of the frontend.
+    \item A typed client SDK contract (\texttt{@sprout/gemini-proxy-sdk}) that hides WebSocket reconnection, JWT refresh, and audio framing from the rest of the frontend.
     \item A forward path to multi-agent coordination based on Gemini function calling~\cite{midscene2024,sprout2026multiagent}.
 \end{enumerate}
 

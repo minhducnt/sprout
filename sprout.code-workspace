@@ -18,7 +18,7 @@
       "**/*.fls": true
     },
     "search.exclude": {
-      "**/docs/reference/**": true
+      "**/docs/references/**": true
     },
     "latex-workshop.latex.rootFile": "docs/report/source/main.tex",
     "latex-workshop.latex.outDir": "docs/report/source",

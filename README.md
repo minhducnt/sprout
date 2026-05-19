@@ -18,7 +18,7 @@ sprout/
 │   │   ├── source/            # LaTeX source (main.tex, sections/, Makefile)
 │   │   └── exports/           # Published PDFs
 │   ├── reviews/               # Reviewer feedback
-│   └── reference/
+│   └── references/
 │       └── thesis-templates/  # Formatting reference (not Sprout content)
 └── README.md
 ```
@@ -29,7 +29,7 @@ The documented AI stack includes:
 
 - **Gemini Proxy** — JWT-validated WebSocket gateway on Cloud Run, forwarding clients to Google Gemini Live API  
 - **Data** — Firestore collections (`users`, `courses`, `lessons`, `conversations`, `messages`, `gemini_sessions`)  
-- **Client** — `@abyxolv/gemini-proxy-sdk` (TypeScript) for WebSocket, JWT refresh, and audio framing  
+- **Client** — `@sprout/gemini-proxy-sdk` (TypeScript) for WebSocket, JWT refresh, and audio framing  
 - **Async work** — Knowledge-map generation via Cloud Tasks; lesson completion and feedback triggers  
 
 See the [abstract](docs/report/source/sections/abstract.tex) and [introduction](docs/report/source/sections/ch01-introduction.tex) for full scope. Chapter list and `docs/` paths: [`docs/README.md`](docs/README.md).
@@ -80,6 +80,8 @@ eval "$(/usr/libexec/path_helper)"
 cd docs/report/source
 make pdf
 ```
+
+`make pdf` renders Mermaid diagrams from `diagrams/*.mmd` into `images/*.png` before XeLaTeX. To refresh diagrams only: `make diagrams`.
 
 Output: `docs/report/source/main.pdf` (gitignored; regenerate locally). LaTeX Workshop uses the same recipe via `sprout.code-workspace`.
 

@@ -1,0 +1,19 @@
+% Shared figure includes (Mermaid-rendered PNGs in images/)
+
+\newcommand{\SproutSystemOverview}{%
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{images/system-overview.png}
+\caption{Sprout AI subsystem overview. The browser uses HTTPS for the control plane (\texttt{sprout-backend}) and a JWT-authenticated WebSocket for the live data plane (\texttt{Gemini Proxy} $\rightarrow$ Gemini Live). Diagram source: \texttt{diagrams/system-overview.mmd}.}
+\label{fig:system-overview}
+\end{figure}
+}
+
+\newcommand{\SproutUserFlow}{%
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\textwidth]{images/user-flow.png}
+\caption{Top-level user flow. Each stage corresponds to distinct backend calls, Firestore writes, and AI invocations. Diagram source: \texttt{diagrams/user-flow.mmd}.}
+\label{fig:userflow}
+\end{figure}
+}

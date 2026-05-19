@@ -46,28 +46,7 @@ Figure~\ref{fig:userflow} sketches the end-to-end flow from skill discovery to p
     \item \textbf{Progress Tracking.} Lesson completion is detected through agent callback or frontend polling; feedback may trigger follow-up lessons.
 \end{enumerate}
 
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[
-    node distance=1.2cm,
-    stage/.style={rectangle, draw, minimum width=2.2cm, minimum height=0.8cm, align=center, font=\small},
-    arrow/.style={->, thick}
-]
-\node[stage] (s1) {Skill\\Discovery};
-\node[stage, right=of s1] (s2) {Knowledge\\Map};
-\node[stage, right=of s2] (s3) {Learning\\Session};
-\node[stage, right=of s3] (s4) {Progress\\Tracking};
-\draw[arrow] (s1) -- (s2);
-\draw[arrow] (s2) -- (s3);
-\draw[arrow] (s3) -- (s4);
-\node[below=0.3cm of s1, font=\scriptsize] {NL query $\rightarrow$ LLM};
-\node[below=0.3cm of s2, font=\scriptsize] {React Flow DAG};
-\node[below=0.3cm of s3, font=\scriptsize] {Gemini Live WS};
-\node[below=0.3cm of s4, font=\scriptsize] {Firestore writes};
-\end{tikzpicture}
-\caption{Top-level user flow. Each stage corresponds to distinct backend calls, Firestore writes, and AI invocations.}
-\label{fig:userflow}
-\end{figure}
+\SproutUserFlow
 
 \section{Recorded Data Assets}
 \label{sec:data-assets}

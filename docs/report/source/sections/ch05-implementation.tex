@@ -11,7 +11,7 @@ The platform is organised as a hybrid monorepo:
     \item \texttt{sprout-web/} --- Next.js 14 frontend (TypeScript, Tailwind, Shadcn/ui, Zustand). Static export deployed to Firebase Hosting.
     \item \texttt{sprout-backend/} --- Firebase Cloud Functions (Node.js + TypeScript). REST API, Firestore triggers, auth middlewares.
     \item \texttt{gemini-proxy/} --- Stateless Node.js WebSocket gateway on Cloud Run. No per-user data beyond the in-process session map.
-    \item \texttt{packages/gemini-proxy-sdk/} --- Published as \texttt{@abyxolv/gemini-proxy-sdk}.
+    \item \texttt{packages/gemini-proxy-sdk/} --- Published as \texttt{@sprout/gemini-proxy-sdk}.
     \item \texttt{sprout-app/} --- Terraform provisioning Firebase, Cloud Run, Cloud Tasks, and secrets~\cite{firebase2024,cloudrun2024}.
 \end{itemize}
 
@@ -72,7 +72,7 @@ class BackendClient {
 \section{Client SDK}
 \label{sec:sdk}
 
-The frontend uses \texttt{@abyxolv/gemini-proxy-sdk}, which standardises authentication, reconnection, audio framing, and metric capture. Listing~\ref{lst:sdk-api} shows the public TypeScript surface; Listing~\ref{lst:browser} typical browser usage.
+The frontend uses \texttt{@sprout/gemini-proxy-sdk}, which standardises authentication, reconnection, audio framing, and metric capture. Listing~\ref{lst:sdk-api} shows the public TypeScript surface; Listing~\ref{lst:browser} typical browser usage.
 
 \begin{lstlisting}[caption={Public SDK API.},label=lst:sdk-api]
 export interface TokenProvider {
